@@ -54,6 +54,7 @@ static pthread_key_t current_jni_env;
 static JavaVM *java_vm;
 static jfieldID custom_data_field_id;
 static jmethodID set_message_method_id;
+static jmethodID gplayer_error_id;
 static gboolean is_buffering;
 GstState target_state;
 
@@ -110,6 +111,17 @@ static void set_ui_message (const gchar *message, CustomData *data) {
   (*env)->DeleteLocalRef (env, jmessage);
 }
 
+/* Notify on Error */
+static void gplayer_error (const gint message, CustomData *data) {
+  JNIEnv *env = get_jni_env ();
+  GST_DEBUG ("Sending error code: %i", message);
+  (*env)->CallVoidMethod (env, data->app, gplayer_error_id, message);
+  if ((*env)->ExceptionCheck (env)) {
+    GST_ERROR ("Failed to call Java method");
+    (*env)->ExceptionClear (env);
+  }
+}
+
 static gboolean refresh_ui (CustomData *data) {
   gint64 current = -1;
 
@@ -129,10 +141,9 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 
   gst_message_parse_error (msg, &err, &debug_info);
   message_string = g_strdup_printf ("Error received from element %s: %s", GST_OBJECT_NAME (msg->src), err->message);
+  GST_DEBUG ("Sending error code: %s", message_string);
+  gplayer_error(err->code, data);
   g_clear_error (&err);
-  g_free (debug_info);
-  set_ui_message (message_string, data);
-  g_free (message_string);
   data->target_state = GST_STATE_PAUSED;
   gst_element_set_state (data->pipeline, GST_STATE_PAUSED);
 }
@@ -438,6 +449,7 @@ static void gst_native_pause (JNIEnv* env, jobject thiz) {
 static jboolean gst_native_class_init (JNIEnv* env, jclass klass) {
   custom_data_field_id = (*env)->GetFieldID (env, klass, "native_custom_data", "J");
   set_message_method_id = (*env)->GetMethodID (env, klass, "setMessage", "(Ljava/lang/String;)V");
+  gplayer_error_id = (*env)->GetMethodID (env, klass, "onError", "(I)V");
 
   if (!custom_data_field_id || !set_message_method_id) {
     /* We emit this message through the Android log instead of the GStreamer log because the later

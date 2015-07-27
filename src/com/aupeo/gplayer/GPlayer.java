@@ -6,6 +6,11 @@ import android.content.Context;
 import android.util.Log;
 
 public class GPlayer {
+    
+    public interface Listener{
+        public void onError(int errorCode);
+    }
+    
     private native void nativeInit();     // Initialize native code, build pipeline, etc
 
     private native void nativeFinalize(); // Destroy pipeline and shutdown native code
@@ -19,6 +24,12 @@ public class GPlayer {
     private static native boolean nativeClassInit(); // Initialize native class: cache Method IDs for callbacks
 
     private long native_custom_data;      // Native code will use this to keep private data
+    
+    private static Listener onListener;
+
+    public void setListener(Listener listener) {
+        onListener = listener;
+    }
 
     public GPlayer(Context context) {
         try {
@@ -47,8 +58,13 @@ public class GPlayer {
         nativeFinalize();
     }
     
-    void setMessage(String message) {
+    public void setMessage(String message) {
         Log.d("GPlayer", "GStreamer message: " + message);
+    }
+    
+    public void onError(int errorCode) {
+        Log.d("GPlayer", "OnError message: " + errorCode);
+        onListener.onError(errorCode);
     }
     
     static {
