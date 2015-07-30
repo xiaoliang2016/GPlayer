@@ -35,6 +35,12 @@ public class GPlayer {
     private native void nativePlay();     // Set pipeline to PLAYING
 
     private native void nativePause();    // Set pipeline to PAUSED
+    
+    private native void nativeReset();
+    
+    private native boolean nativeIsPlaying();
+    
+    private native void nativeSetVolume(float left, float right);
 
     private static native boolean nativeClassInit(); // Initialize native class: cache Method IDs for callbacks
 
@@ -79,6 +85,10 @@ public class GPlayer {
         nativeSetPosition(seek);
     }
     
+    public boolean isPlaying() {
+        return nativeIsPlaying();
+    }
+    
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
@@ -90,35 +100,52 @@ public class GPlayer {
     }
     
     public void onError(int errorCode) {
-        Log.d("GPlayer", "OnError message: " + errorCode);
+        Log.d("GPlayer", "onError errorCode: " + errorCode);
         onListener.onError(errorCode);
     }
 
     public void onPlayerState(int newState) {
-        Log.d("GPlayer", "onPlayerState message: " + newState);
+        Log.d("GPlayer", "onPlayerState newState: " + newState);
         onListener.onPlayerState(GState.values()[newState]);
     }
 
     public void onTime(int time) {
+        Log.d("GPlayer", "onTime: [" + time + "]");
         onListener.onTime(time);
     }
     
     public void onPlayComplete() {
+        Log.d("GPlayer", "onPlayComplete");
         onListener.onPlayComplete();
     }
 
     public void onGPlayerReady() {
+        Log.d("GPlayer", "onGPlayerReady");
         onListener.onGPlayerReady();
     }
 
     public int getPosition() {
-        return nativeGetPosition();
+        int position = nativeGetPosition();
+        Log.d("GPlayer", "nativeGetPosition: " + position);
+        return position;
     }
     
     public int getDuration() {
-        return nativeGetDuration();
+        int duration = nativeGetDuration();
+        Log.d("GPlayer", "nativeGetDuration: " + duration);
+        return duration;
     }
-
+    
+    public void reset() {
+        Log.d("GPlayer", "reset");
+        nativeReset();
+    }
+    
+    public void setVolume(final float left, final float right) {
+        Log.d("GPlayer", "setVolume " + left + "," + right);
+        nativeSetVolume(left, right);
+    }
+    
     static {
         System.loadLibrary("gstreamer_android");
         System.loadLibrary("gplayer");

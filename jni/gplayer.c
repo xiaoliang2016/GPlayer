@@ -593,7 +593,16 @@ static void gst_native_set_notifytime(JNIEnv* env, jobject thiz, int time) {
     g_source_unref (data->timeout_source);
 }
 
-int gst_native_get_position(JNIEnv* env, jobject thiz) {
+static void gst_native_reset(JNIEnv* env, jobject thiz) {
+    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    gst_native_pause(env, thiz);
+    g_object_set(data->pipeline, "volume", 1.0f, NULL);
+    gst_native_set_position(env, thiz, 0);
+    gst_native_set_uri(env, thiz, "");
+    gst_native_set_url(env, thiz, "");
+}
+
+static int gst_native_get_position(JNIEnv* env, jobject thiz) {
     gint64 position;
     CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
 
@@ -608,7 +617,7 @@ int gst_native_get_position(JNIEnv* env, jobject thiz) {
     return (int)(position / GST_MSECOND);
 }
 
-int gst_native_get_duration(JNIEnv* env, jobject thiz) {
+static int gst_native_get_duration(JNIEnv* env, jobject thiz) {
     gint64 duration;
     CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
 
@@ -623,6 +632,20 @@ int gst_native_get_duration(JNIEnv* env, jobject thiz) {
     return (int)(duration / GST_MSECOND);
 }
 
+static gboolean gst_native_isplaying(JNIEnv* env, jobject thiz) {
+    GstState state;
+    GstState pending;
+    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    gst_element_get_state(data->pipeline, &state, &pending, GST_CLOCK_TIME_NONE);
+    return state == GST_STATE_PLAYING;
+}
+
+static void gst_native_volume(JNIEnv* env, jobject thiz, float left, float right) {
+    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    GST_DEBUG ("Set volume to %f", (float)((left+right)/2));
+    g_object_set(data->pipeline, "volume", (float)((left+right)/2), NULL);
+}
+
 /* List of implemented native methods */
 static JNINativeMethod native_methods[] = {
   { "nativeInit", "()V", (void *) gst_native_init},
@@ -635,7 +658,10 @@ static JNINativeMethod native_methods[] = {
   { "nativeGetDuration", "()I", (int*) gst_native_get_duration},
   { "nativePlay", "()V", (void *) gst_native_play},
   { "nativePause", "()V", (void *) gst_native_pause},
-  { "nativeClassInit", "()Z", (void *) gst_native_class_init}
+  { "nativeClassInit", "()Z", (void *) gst_native_class_init},
+  { "nativeReset", "()V", (void *) gst_native_reset},
+  { "nativeIsPlaying", "()Z", (gboolean *) gst_native_isplaying},
+  { "nativeSetVolume", "(FF)V", (gboolean *) gst_native_volume}
 };
 
 /* Library initializer */
