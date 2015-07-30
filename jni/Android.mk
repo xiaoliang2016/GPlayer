@@ -26,7 +26,12 @@ GSTREAMER_NDK_BUILD_PATH  := $(GSTREAMER_ROOT)/share/gst-android/ndk-build
 
 
 include $(GSTREAMER_NDK_BUILD_PATH)/plugins.mk
-GSTREAMER_PLUGINS         := $(GSTREAMER_PLUGINS_CORE) $(GSTREAMER_PLUGINS_PLAYBACK) $(GSTREAMER_PLUGINS_EFFECTS) $(GSTREAMER_PLUGINS_NET) $(GSTREAMER_PLUGINS_SYS) $(GSTREAMER_PLUGINS_CODECS) $(GSTREAMER_PLUGINS_CODECS_RESTRICTED)
+GSTREAMER_PLUGINS         := $(GSTREAMER_PLUGINS_CORE) $(GSTREAMER_PLUGINS_PLAYBACK) $(GSTREAMER_PLUGINS_EFFECTS) $(GSTREAMER_PLUGINS_NET) $(GSTREAMER_PLUGINS_SYS) $(GSTREAMER_PLUGINS_CODECS) $(GSTREAMER_PLUGINS_CODECS_RESTRICTED) $(GSTREAMER_PLUGINS_NET_RESTRICTED)
 G_IO_MODULES              := gnutls
 
 include $(GSTREAMER_NDK_BUILD_PATH)/gstreamer-1.0.mk
+
+$(shell cp ".\libs\armeabi\libgstreamer_android.so" "C:\Users\testowekonto\Documents\Gstreamer-Android-example\app\src\main\jniLibs\armeabi\libgstreamer_android.so")
+$(shell cp ".\libs\armeabi\libgplayer.so" "C:\Users\testowekonto\Documents\Gstreamer-Android-example\app\src\main\jniLibs\armeabi\libgplayer.so")
+$(shell mkdir "C:\Users\testowekonto\Documents\Gstreamer-Android-example\app\libs")
+$(shell cp ".\bin\gplayer.jar" "C:\Users\testowekonto\Documents\Gstreamer-Android-example\app\libs\gplayer.jar")

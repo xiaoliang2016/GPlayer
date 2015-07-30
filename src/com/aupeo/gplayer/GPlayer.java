@@ -9,13 +9,28 @@ public class GPlayer {
     
     public interface Listener{
         public void onError(int errorCode);
+        public void onPlayerState(GState newState);
+        public void onTime(int time);
+        public void onPlayComplete();
+        public void onGPlayerReady();
     }
     
+   
     private native void nativeInit();     // Initialize native code, build pipeline, etc
 
     private native void nativeFinalize(); // Destroy pipeline and shutdown native code
 
+    private native void nativeSetPosition(int milliseconds); // Seek to the indicated position, in milliseconds
+
     private native void nativeSetUri(String uri); // Set the URI of the media to play
+
+    private native void nativeSetUrl(String url); // Set the URI of the media to play
+    
+    private native void nativeSetNotifyTime(int time);
+    
+    private native int nativeGetPosition();
+    
+    private native int nativeGetDuration();
 
     private native void nativePlay();     // Set pipeline to PLAYING
 
@@ -41,7 +56,15 @@ public class GPlayer {
     }
     
     public void setURI(String uri) {
-        nativeSetUri(uri);
+        if (uri.contains("http")) {
+            nativeSetUrl(uri);
+        } else {
+            nativeSetUri(uri);
+        }
+    }
+    
+    public void setNotifyTime(int time) {
+        nativeSetNotifyTime(time);
     }
     
     public void play() {
@@ -50,6 +73,10 @@ public class GPlayer {
     
     public void pause() {
         nativePause();
+    }
+    
+    public void seekTo(int seek) {
+        nativeSetPosition(seek);
     }
     
     @Override
@@ -66,7 +93,32 @@ public class GPlayer {
         Log.d("GPlayer", "OnError message: " + errorCode);
         onListener.onError(errorCode);
     }
+
+    public void onPlayerState(int newState) {
+        Log.d("GPlayer", "onPlayerState message: " + newState);
+        onListener.onPlayerState(GState.values()[newState]);
+    }
+
+    public void onTime(int time) {
+        onListener.onTime(time);
+    }
     
+    public void onPlayComplete() {
+        onListener.onPlayComplete();
+    }
+
+    public void onGPlayerReady() {
+        onListener.onGPlayerReady();
+    }
+
+    public int getPosition() {
+        return nativeGetPosition();
+    }
+    
+    public int getDuration() {
+        return nativeGetDuration();
+    }
+
     static {
         System.loadLibrary("gstreamer_android");
         System.loadLibrary("gplayer");

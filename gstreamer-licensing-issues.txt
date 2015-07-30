@@ -1,0 +1,32 @@
+1.
+FIRST READ:
+http://gstreamer.freedesktop.org/documentation/licensing.html
+http://gstreamer.freedesktop.org/data/doc/gstreamer/head/faq/html/chapter-legal.html
+http://gstreamer-devel.966125.n4.nabble.com/Commercial-gstreamer-based-application-td3854185.html
+
+2.
+GStreamer uses Lesser GPL license: http://www.gnu.org/licenses/lgpl.html
+
+3.
+GStreamer is modular, there is not much core itself, GStreamer SDK/Library is plugin based,
+list of all available plugins: http://gstreamer.freedesktop.org/documentation/plugins.html
+GStreamer can be divided into groups:
+- core - GStreamer itself, LGPL licensing,
+- gst-plugins-base - base plugins, LGPL licensing,
+- gst-plugins-good - plugins for "everyday use", LGPL licensing,
+- gst-plugins-bad - working but bad documentation for example, LGPL licensing,
+- gst-plugins-ugly - good plugins but can have various licensing issues,
+- proprietary plugins
+
+4.
+unlike GPL, LGPL allows to make your own licensing policy while using LGPL based software,
+if you want to modify LGPL licensed code to make it working, you need to publish that code after modifications.
+
+5.
+making GStreamer Android based media player does not require to modify any of LGPL licensed software that comes with GStreamer,
+we can get GStreamer prebuild libraries/plugins/codecs and wrap them with our own media player's logic implementation,
+if there are doubts, lets make GStreamer based Android/iOS media player and then publish its whole code under GPL.
+
+6.
+Aupeo requires only few audio decoders to work correctly, we do not need to use bad/ugly/proprietary plugins to get GStreamer in use.
+Note: https://aupeoberlin.atlassian.net/browse/AND-926

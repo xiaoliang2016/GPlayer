@@ -137,7 +137,6 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(jpegformat);
   GST_PLUGIN_STATIC_DECLARE(gdp);
   GST_PLUGIN_STATIC_DECLARE(rsvg);
-  GST_PLUGIN_STATIC_DECLARE(androidmedia);
   GST_PLUGIN_STATIC_DECLARE(asfmux);
   GST_PLUGIN_STATIC_DECLARE(dtsdec);
   GST_PLUGIN_STATIC_DECLARE(faad);
@@ -158,6 +157,8 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(realmedia);
   GST_PLUGIN_STATIC_DECLARE(x264);
   GST_PLUGIN_STATIC_DECLARE(libav);
+  GST_PLUGIN_STATIC_DECLARE(mms);
+  GST_PLUGIN_STATIC_DECLARE(rtmp);
 
 
 /* Declaration of static gio modules */
@@ -293,7 +294,6 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(jpegformat);
   GST_PLUGIN_STATIC_REGISTER(gdp);
   GST_PLUGIN_STATIC_REGISTER(rsvg);
-  GST_PLUGIN_STATIC_REGISTER(androidmedia);
   GST_PLUGIN_STATIC_REGISTER(asfmux);
   GST_PLUGIN_STATIC_REGISTER(dtsdec);
   GST_PLUGIN_STATIC_REGISTER(faad);
@@ -314,6 +314,8 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(realmedia);
   GST_PLUGIN_STATIC_REGISTER(x264);
   GST_PLUGIN_STATIC_REGISTER(libav);
+  GST_PLUGIN_STATIC_REGISTER(mms);
+  GST_PLUGIN_STATIC_REGISTER(rtmp);
 
 }
 
