@@ -43,6 +43,7 @@ typedef struct _CustomData {
   gint64 desired_position;      /* Position to seek to, once the pipeline is running */
   GstClockTime last_seek_time;  /* For seeking overflow prevention (throttling) */
   gboolean is_live;             /* Live streams do not use buffering */
+  gboolean network_error;
   GSource *timeout_source;
 } CustomData;
 
@@ -158,9 +159,10 @@ static void gplayer_playback_complete (CustomData *data) {
 static gboolean gplayer_notify_time (CustomData *data) {
   gint64 current = -1;
   gint64 position;
+  gint buffer_size;
 
   /* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
-  if (!data || !data->pipeline || data->state < GST_STATE_PAUSED)
+  if (!data || !data->pipeline)
     return TRUE;
 
   /* If we didn't know it yet, query the stream duration */
@@ -177,13 +179,18 @@ static gboolean gplayer_notify_time (CustomData *data) {
     if (data->target_state >= GST_STATE_PLAYING)
     {
         JNIEnv *env = get_jni_env();
-        GST_DEBUG("Notify time: %i", (int)(position / GST_MSECOND));
+        g_object_get(data->pipeline, "buffer-size", &buffer_size, NULL);
+        GST_DEBUG("Notify time: %i, buffer: %i", (int)(position / GST_MSECOND), buffer_size);
         (*env)->CallVoidMethod(env, data->app, gplayer_notify_time_id,
             (int) (position / GST_MSECOND));
         if ((*env)->ExceptionCheck(env))
         {
             GST_ERROR("Failed to call Java method");
             (*env)->ExceptionClear(env);
+        }
+        if (data->network_error == TRUE) {
+            GST_DEBUG ("Retrying setting state to PLAYING");
+            data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
         }
     }
   return TRUE;
@@ -242,9 +249,13 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 
   gst_message_parse_error (msg, &err, &debug_info);
   gplayer_error(err->code, data);
+  gplayer_notify_state(GST_STATE_PAUSED, data);
+
+  GST_DEBUG ("error_cb: %s", debug_info);
   g_free (debug_info);
   g_clear_error (&err);
-  data->target_state = GST_STATE_NULL;
+//  data->target_state = GST_STATE_NULL;
+  data->network_error = TRUE;
   gst_element_set_state (data->pipeline, GST_STATE_NULL);
 }
 
@@ -266,8 +277,8 @@ static void duration_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   gint percent;
 
-  if (data->is_live)
-    return;
+/*  if (data->is_live)
+    return;*/
 
 /*  gst_message_parse_buffering (msg, &percent);
   GST_DEBUG ("buffering: %d", percent);
@@ -325,6 +336,9 @@ static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
       /* If there was a scheduled seek, perform it now that we have moved to the Paused state */
       if (GST_CLOCK_TIME_IS_VALID (data->desired_position))
         execute_seek (data->desired_position, data);
+    }
+    if (new_state == GST_STATE_PLAYING) {
+        data->network_error = FALSE;
     }
   }
 }
@@ -505,6 +519,7 @@ void gst_native_set_uri (JNIEnv* env, jobject thiz, jstring uri) {
   (*env)->ReleaseStringUTFChars (env, uri, char_uri);
   data->duration = GST_CLOCK_TIME_NONE;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+  gplayer_notify_state(GST_STATE_PREPARED, data);
 }
 
 void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri) {
@@ -518,6 +533,7 @@ void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri) {
   (*env)->ReleaseStringUTFChars (env, uri, char_uri);
   data->duration = GST_CLOCK_TIME_NONE;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+  gplayer_notify_state(GST_STATE_PREPARED, data);
 }
 
 /* Set pipeline to PLAYING state */
@@ -598,8 +614,6 @@ static void gst_native_reset(JNIEnv* env, jobject thiz) {
     gst_native_pause(env, thiz);
     g_object_set(data->pipeline, "volume", 1.0f, NULL);
     gst_native_set_position(env, thiz, 0);
-    gst_native_set_uri(env, thiz, "");
-    gst_native_set_url(env, thiz, "");
 }
 
 static int gst_native_get_position(JNIEnv* env, jobject thiz) {
