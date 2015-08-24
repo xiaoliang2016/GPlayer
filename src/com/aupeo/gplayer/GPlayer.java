@@ -7,15 +7,102 @@ import android.util.Log;
 
 public class GPlayer {
     
-    public interface Listener{
-        public void onError(int errorCode);
-        public void onPlayerState(GState newState);
-        public void onTime(int time);
-        public void onPlayComplete();
-        public void onGPlayerReady();
+    public interface OnTimeListener
+    {
+        void onTime(int time);
     }
     
+    public interface OnGPlayerReadyListener
+    {
+        void onGPlayerReady();
+    }
+    
+    public interface OnPreparedListener
+    {
+        void onPrepared();
+    }
+
+    public interface OnCompletionListener
+    {
+        void onCompletion();
+    }
+    
+    public interface OnPlayStartedListener
+    {
+        void onPlayback();
+    }
+    
+    public interface OnBufferingUpdateListener
+    {
+        void onBufferingUpdate(int percent);
+    }
+    
+    public interface OnSeekCompleteListener
+    {
+        public void onSeekComplete();
+    }
+    
+    public interface OnErrorListener
+    {
+        boolean onError(int errorCode);
+    }
    
+    public void setOnErrorListener(OnErrorListener listener)
+    {
+        mOnErrorListener = listener;
+    }
+
+    private OnErrorListener mOnErrorListener;
+    
+    public void setOnSeekCompleteListener(OnSeekCompleteListener listener)
+    {
+        mOnSeekCompleteListener = listener;
+    }
+
+    private OnSeekCompleteListener mOnSeekCompleteListener;
+    
+    public void setOnPlayListener(OnPlayStartedListener listener)
+    {
+        mOnPlayStartedListener = listener;
+    }
+
+    private OnPlayStartedListener mOnPlayStartedListener;
+    
+    public void setOnBufferingUpdateListener(OnBufferingUpdateListener listener)
+    {
+        mOnBufferingUpdateListener = listener;
+    }
+
+    private OnBufferingUpdateListener mOnBufferingUpdateListener;
+    
+    public void setOnCompletionListener(OnCompletionListener listener)
+    {
+        mOnCompletionListener = listener;
+    }
+
+    private OnCompletionListener mOnCompletionListener;
+    
+    public void setOnPreparedListener(OnPreparedListener listener)
+    {
+        mOnPreparedListener = listener;
+    }
+    
+    private OnPreparedListener mOnPreparedListener;
+    
+    public void setOnTimeListener(OnTimeListener listener)
+    {
+        mOnTimeListener = listener;
+    }
+    
+    private OnTimeListener mOnTimeListener;
+    
+    public void setOnGPlayerReadyListener(OnGPlayerReadyListener listener)
+    {
+        mOnGPlayerReadyListener = listener;
+    }
+    
+    private OnGPlayerReadyListener mOnGPlayerReadyListener;
+    
     private native void nativeInit();     // Initialize native code, build pipeline, etc
 
     private native void nativeFinalize(); // Destroy pipeline and shutdown native code
@@ -36,6 +123,8 @@ public class GPlayer {
 
     private native void nativePause();    // Set pipeline to PAUSED
     
+    private native void nativeStop();    // Set pipeline to STOPPED
+    
     private native void nativeReset();
     
     private native boolean nativeIsPlaying();
@@ -45,12 +134,6 @@ public class GPlayer {
     private static native boolean nativeClassInit(); // Initialize native class: cache Method IDs for callbacks
 
     private long native_custom_data;      // Native code will use this to keep private data
-    
-    private static Listener onListener;
-
-    public void setListener(Listener listener) {
-        onListener = listener;
-    }
 
     public GPlayer(Context context) {
         try {
@@ -61,7 +144,7 @@ public class GPlayer {
         nativeInit();
     }
     
-    public void setURI(String uri) {
+    public void setDataSource(String uri) {
         if (uri.contains("http")) {
             nativeSetUrl(uri);
         } else {
@@ -73,12 +156,16 @@ public class GPlayer {
         nativeSetNotifyTime(time);
     }
     
-    public void play() {
+    public void start() {
         nativePlay();
     }
     
     public void pause() {
         nativePause();
+    }
+    
+    public void stop() {
+        nativeStop();
     }
     
     public void seekTo(int seek) {
@@ -89,42 +176,47 @@ public class GPlayer {
         return nativeIsPlaying();
     }
     
+    public void release() {
+        nativeFinalize();
+    }
+    
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
         nativeFinalize();
     }
     
-    public void setMessage(String message) {
-        Log.d("GPlayer", "GStreamer message: " + message);
-    }
-    
     public void onError(int errorCode) {
         Log.d("GPlayer", "onError errorCode: " + errorCode);
-        onListener.onError(errorCode);
-    }
-
-    public void onPlayerState(int newState) {
-        Log.d("GPlayer", "onPlayerState newState: " + newState);
-        onListener.onPlayerState(GState.values()[newState]);
+        mOnErrorListener.onError(errorCode);
     }
 
     public void onTime(int time) {
         Log.d("GPlayer", "onTime: [" + time + "]");
-        onListener.onTime(time);
+        mOnTimeListener.onTime(time);
     }
     
     public void onPlayComplete() {
         Log.d("GPlayer", "onPlayComplete");
-        onListener.onPlayComplete();
+        mOnCompletionListener.onCompletion();
     }
 
     public void onGPlayerReady() {
         Log.d("GPlayer", "onGPlayerReady");
-        onListener.onGPlayerReady();
+        mOnGPlayerReadyListener.onGPlayerReady();
     }
 
-    public int getPosition() {
+    public void onPrepared() {
+        Log.d("GPlayer", "onPrepared");
+        mOnPreparedListener.onPrepared();
+    }
+
+    public void onPlayStarted() {
+        Log.d("GPlayer", "onPlayStarted");
+        mOnPlayStartedListener.onPlayback();
+    }
+
+    public int getCurrentPosition() {
         int position = nativeGetPosition();
         Log.d("GPlayer", "nativeGetPosition: " + position);
         return position;
@@ -137,8 +229,8 @@ public class GPlayer {
     }
     
     public void reset() {
-        Log.d("GPlayer", "reset");
-        nativeReset();
+        nativeStop();
+        nativeSetPosition(0);
     }
     
     public void setVolume(final float left, final float right) {

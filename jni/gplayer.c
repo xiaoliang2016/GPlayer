@@ -4,9 +4,10 @@
 #include <android/log.h>
 #include <gst/gst.h>
 #include <pthread.h>
-
 GST_DEBUG_CATEGORY_STATIC (debug_category);
 #define GST_CAT_DEFAULT debug_category
+
+#define GRAPH_LENGTH 80
 
 /*
  * These macros provide a way to store the native pointer to CustomData, which might be 32 or 64 bits, into
@@ -45,12 +46,12 @@ typedef struct _CustomData {
   gboolean is_live;             /* Live streams do not use buffering */
   gboolean network_error;
   GSource *timeout_source;
+  gint buffering_level;
 } CustomData;
 
 /* playbin2 flags */
 typedef enum {
     GST_PLAY_FLAG_TEXT = (1 << 2),  /* We want subtitle output */
-    GST_PLAY_FLAG_DOWNLOAD = (1 << 7)
 } GstPlayFlags;
 
 /* These global variables cache values which are not changing during execution */
@@ -58,12 +59,12 @@ static pthread_t gst_app_thread;
 static pthread_key_t current_jni_env;
 static JavaVM *java_vm;
 static jfieldID custom_data_field_id;
-static jmethodID set_message_method_id;
 static jmethodID gplayer_error_id;
-static jmethodID gplayer_notify_state_id;
 static jmethodID gplayer_notify_time_id;
 static jmethodID gplayer_playback_complete_id;
 static jmethodID gplayer_initialized_method_id;
+static jmethodID gplayer_prepared_method_id;
+static jmethodID gplayer_playback_running_id;
 static gboolean is_buffering;
 GstState target_state;
 
@@ -107,19 +108,6 @@ static JNIEnv *get_jni_env (void) {
   return env;
 }
 
-/* Change the content of the UI's TextView */
-static void set_ui_message (const gchar *message, CustomData *data) {
-  JNIEnv *env = get_jni_env ();
-  GST_DEBUG ("Setting message to: %s", message);
-  jstring jmessage = (*env)->NewStringUTF(env, message);
-  (*env)->CallVoidMethod (env, data->app, set_message_method_id, jmessage);
-  if ((*env)->ExceptionCheck (env)) {
-    GST_ERROR ("Failed to call Java method");
-    (*env)->ExceptionClear (env);
-  }
-  (*env)->DeleteLocalRef (env, jmessage);
-}
-
 /* Notify on Error */
 static void gplayer_error (const gint message, CustomData *data) {
   JNIEnv *env = get_jni_env ();
@@ -131,23 +119,30 @@ static void gplayer_error (const gint message, CustomData *data) {
   }
 }
 
-
-/* Notify on Error */
-static void gplayer_notify_state (const int message, CustomData *data) {
+static void gplayer_playback_complete (CustomData *data) {
   JNIEnv *env = get_jni_env ();
-  GST_DEBUG ("Sending state code: %i", message);
-  (*env)->CallVoidMethod (env, data->app, gplayer_notify_state_id, message);
+  GST_DEBUG ("Sending Playback Complete Event");
+  (*env)->CallVoidMethod (env, data->app, gplayer_playback_complete_id, NULL);
   if ((*env)->ExceptionCheck (env)) {
     GST_ERROR ("Failed to call Java method");
     (*env)->ExceptionClear (env);
   }
 }
 
-/* Notify on Error */
-static void gplayer_playback_complete (CustomData *data) {
+static void gplayer_playback_running (CustomData *data) {
   JNIEnv *env = get_jni_env ();
-  GST_DEBUG ("Sending Playback Complete Event");
-  (*env)->CallVoidMethod (env, data->app, gplayer_playback_complete_id, NULL);
+  GST_DEBUG ("Sending Playback Running Event");
+  (*env)->CallVoidMethod (env, data->app, gplayer_playback_running_id, NULL);
+  if ((*env)->ExceptionCheck (env)) {
+    GST_ERROR ("Failed to call Java method");
+    (*env)->ExceptionClear (env);
+  }
+}
+
+static void gplayer_prepare_complete (CustomData *data) {
+  JNIEnv *env = get_jni_env ();
+  GST_DEBUG ("Sending Prepare Complete Event");
+  (*env)->CallVoidMethod (env, data->app, gplayer_prepared_method_id, NULL);
   if ((*env)->ExceptionCheck (env)) {
     GST_ERROR ("Failed to call Java method");
     (*env)->ExceptionClear (env);
@@ -159,7 +154,6 @@ static void gplayer_playback_complete (CustomData *data) {
 static gboolean gplayer_notify_time (CustomData *data) {
   gint64 current = -1;
   gint64 position;
-  gint buffer_size;
 
   /* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
   if (!data || !data->pipeline)
@@ -179,9 +173,8 @@ static gboolean gplayer_notify_time (CustomData *data) {
     if (data->target_state >= GST_STATE_PLAYING)
     {
         JNIEnv *env = get_jni_env();
-        g_object_get(data->pipeline, "buffer-size", &buffer_size, NULL);
-        GST_DEBUG("Notify time: %i, buffer: %i", (int)(position / GST_MSECOND), buffer_size);
-        (*env)->CallVoidMethod(env, data->app, gplayer_notify_time_id,
+        GST_DEBUG("Notify time: %i", (int)(position / GST_MSECOND));
+            (*env)->CallVoidMethod(env, data->app, gplayer_notify_time_id,
             (int) (position / GST_MSECOND));
         if ((*env)->ExceptionCheck(env))
         {
@@ -226,11 +219,13 @@ static void execute_seek (gint64 desired_position, CustomData *data) {
     GST_DEBUG ("Throttling seek to %" GST_TIME_FORMAT ", will be in %" GST_TIME_FORMAT,
         GST_TIME_ARGS (desired_position), GST_TIME_ARGS (SEEK_MIN_DELAY - diff));
   } else {
-    /* Perform the seek now */
-    GST_DEBUG ("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS (desired_position));
-    data->last_seek_time = gst_util_get_timestamp ();
-    gst_element_seek_simple (data->pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, desired_position);
-    data->desired_position = GST_CLOCK_TIME_NONE;
+      if (!data->is_live) {
+          /* Perform the seek now */
+          GST_DEBUG ("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS (desired_position));
+          data->last_seek_time = gst_util_get_timestamp ();
+          gst_element_seek_simple (data->pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, desired_position);
+      }
+      data->desired_position = GST_CLOCK_TIME_NONE;
   }
 }
 
@@ -249,7 +244,6 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 
   gst_message_parse_error (msg, &err, &debug_info);
   gplayer_error(err->code, data);
-  gplayer_notify_state(GST_STATE_PAUSED, data);
 
   GST_DEBUG ("error_cb: %s", debug_info);
   g_free (debug_info);
@@ -275,39 +269,21 @@ static void duration_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 /* Called when buffering messages are received. We inform the UI about the current buffering level and
  * keep the pipeline paused until 100% buffering is reached. At that point, set the desired state. */
 static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
-  gint percent;
 
-/*  if (data->is_live)
-    return;*/
+  if (data->is_live)
+    return;
 
-/*  gst_message_parse_buffering (msg, &percent);
-  GST_DEBUG ("buffering: %d", percent);
-  if (percent < 100 && data->target_state >= GST_STATE_PAUSED) {
-    gchar * message_string = g_strdup_printf ("Buffering %d%%", percent);
-    gst_element_set_state (data->pipeline, GST_STATE_PAUSED);
-    set_ui_message (message_string, data);
-    g_free (message_string);
-  } else if (data->target_state >= GST_STATE_PLAYING) {
-    gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
-  } else if (data->target_state >= GST_STATE_PAUSED) {
-    set_ui_message ("Buffering complete", data);
-  }*/
-
-  gst_message_parse_buffering (msg, &percent);
-      GST_DEBUG ("buffering: %d", percent);
-      if (percent < 100) {
-        /* buffering busy */
-        if (!is_buffering) {
-      gchar * message_string = g_strdup_printf ("Buffering %d%%", percent);
-      set_ui_message (message_string, data);
-      g_free (message_string);
-      if (percent > 25) {
-        gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
+  gst_message_parse_buffering (msg, &data->buffering_level);
+      GST_DEBUG ("buffering: %d", data->buffering_level);
+      if (data->buffering_level < 100) {
+          if (!is_buffering) {
+              if (data->buffering_level > 25) {
+                  gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
+              }
+              is_buffering = TRUE;
+          }
       } else {
-        gst_element_set_state (data->pipeline, GST_STATE_PAUSED);
-      }
-      is_buffering = TRUE;
-        }
+          is_buffering = FALSE;
       }
 }
 
@@ -325,11 +301,7 @@ static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   gst_message_parse_state_changed (msg, &old_state, &new_state, &pending_state);
   /* Only pay attention to messages coming from the pipeline, not its children */
   if (GST_MESSAGE_SRC (msg) == GST_OBJECT (data->pipeline)) {
-      gplayer_notify_state(new_state, data);
     data->state = new_state;
-    gchar *message = g_strdup_printf("State changed to %s", gst_element_state_get_name(new_state));
-    set_ui_message(message, data);
-    g_free (message);
 
     /* The Ready to Paused state change is particularly interesting: */
     if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED) {
@@ -339,6 +311,7 @@ static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     }
     if (new_state == GST_STATE_PLAYING) {
         data->network_error = FALSE;
+        gplayer_playback_running(data);
     }
   }
 }
@@ -359,51 +332,6 @@ static void check_initialization_complete (CustomData *data) {
   }
 }
 
-static gboolean buffer_timeout (CustomData *data)
-{
-  GstQuery *query;
-  GstElement *pipeline = data->pipeline;
-  gboolean busy;
-  gint percent;
-  gint64 estimated_total;
-  guint64 play_left;
-
-  query = gst_query_new_buffering (GST_FORMAT_TIME);
-
-  if (!gst_element_query (pipeline, query))
-    return TRUE;
-
-  gst_query_parse_buffering_percent (query, &busy, &percent);
-  gst_query_parse_buffering_range (query, NULL, NULL, NULL, &estimated_total);
-
-  if (estimated_total == -1)
-    estimated_total = 0;
-
-    play_left = 0;
-
-  g_message ("play_left %" G_GUINT64_FORMAT", estimated_total %" G_GUINT64_FORMAT
-      ", percent %d", play_left, estimated_total, percent);
-
-  /* we are buffering or the estimated download time is bigger than the
-   * remaining playback time. We keep buffering. */
-  is_buffering = (busy || estimated_total * 1.1 > play_left);
-
-  if (!is_buffering)
-    gst_element_set_state (pipeline, target_state);
-
-  return is_buffering;
-}
-
-static void message_async_done_cb (GstBus *bus, GstMessage *msg, CustomData *data)
-{
-  GstElement *pipeline = data->pipeline;
-  if (!is_buffering)
-    gst_element_set_state (pipeline, target_state);
-  else
-     g_timeout_add (5, (GSourceFunc)buffer_timeout, pipeline);
-}
-
-
 /* Main method for the native code. This is executed on its own thread. */
 static void *app_function (void *userdata) {
   JavaVMAttachArgs args;
@@ -422,16 +350,13 @@ static void *app_function (void *userdata) {
   /* Build pipeline */
   data->pipeline = gst_parse_launch("playbin", &error);
   if (error) {
-    gchar *message = g_strdup_printf("Unable to build pipeline: %s", error->message);
+    gplayer_error(error->code, data);
     g_clear_error (&error);
-    set_ui_message(message, data);
-    g_free (message);
     return NULL;
   }
 
   /* Disable subtitles */
   g_object_get (data->pipeline, "flags", &flags, NULL);
-  flags &= ~GST_PLAY_FLAG_DOWNLOAD;
   flags &= ~GST_PLAY_FLAG_TEXT;
   g_object_set (data->pipeline, "flags", flags, NULL);
 
@@ -451,8 +376,10 @@ static void *app_function (void *userdata) {
   g_signal_connect (G_OBJECT (bus), "message::duration", (GCallback)duration_cb, data);
   g_signal_connect (G_OBJECT (bus), "message::buffering", (GCallback)buffering_cb, data);
   g_signal_connect (G_OBJECT (bus), "message::clock-lost", (GCallback)clock_lost_cb, data);
-  //g_signal_connect (G_OBJECT (bus), "message::async-done", (GCallback)message_async_done_cb, data);
   gst_object_unref (bus);
+
+  //g_object_set (data->pipeline, "ring-buffer-max-size", (guint64)4000000, NULL);
+  //g_object_set (data->pipeline, "buffer-size", (gint)4000000, NULL);
 
   /* Create a GLib Main Loop and set it to run */
   GST_DEBUG ("Entering main loop... (CustomData:%p)", data);
@@ -518,8 +445,9 @@ void gst_native_set_uri (JNIEnv* env, jobject thiz, jstring uri) {
   g_object_set(data->pipeline, "uri", url, NULL);
   (*env)->ReleaseStringUTFChars (env, uri, char_uri);
   data->duration = GST_CLOCK_TIME_NONE;
+  data->buffering_level = 100;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
-  gplayer_notify_state(GST_STATE_PREPARED, data);
+  gplayer_prepare_complete(data);
 }
 
 void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri) {
@@ -532,8 +460,9 @@ void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri) {
   g_object_set(data->pipeline, "uri", char_uri, NULL);
   (*env)->ReleaseStringUTFChars (env, uri, char_uri);
   data->duration = GST_CLOCK_TIME_NONE;
+  data->buffering_level = 100;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
-  gplayer_notify_state(GST_STATE_PREPARED, data);
+  gplayer_prepare_complete(data);
 }
 
 /* Set pipeline to PLAYING state */
@@ -570,20 +499,13 @@ void gst_native_set_position (JNIEnv* env, jobject thiz, int milliseconds) {
 /* Static class initializer: retrieve method and field IDs */
 static jboolean gst_native_class_init (JNIEnv* env, jclass klass) {
   custom_data_field_id = (*env)->GetFieldID (env, klass, "native_custom_data", "J");
-  set_message_method_id = (*env)->GetMethodID (env, klass, "setMessage", "(Ljava/lang/String;)V");
   gplayer_error_id = (*env)->GetMethodID (env, klass, "onError", "(I)V");
-  gplayer_notify_state_id = (*env)->GetMethodID (env, klass, "onPlayerState", "(I)V");
   gplayer_notify_time_id = (*env)->GetMethodID (env, klass, "onTime", "(I)V");
   gplayer_playback_complete_id = (*env)->GetMethodID (env, klass, "onPlayComplete", "()V");
+  gplayer_playback_running_id = (*env)->GetMethodID (env, klass, "onPlayStarted", "()V");
   gplayer_initialized_method_id = (*env)->GetMethodID (env, klass, "onGPlayerReady", "()V");
+  gplayer_prepared_method_id = (*env)->GetMethodID (env, klass, "onPrepared", "()V");
 
-  if (!custom_data_field_id || !set_message_method_id) {
-    /* We emit this message through the Android log instead of the GStreamer log because the later
-     * has not been initialized yet.
-     */
-    __android_log_print (ANDROID_LOG_ERROR, "gplayer", "The calling class does not implement all necessary interface methods");
-    return JNI_FALSE;
-  }
   return JNI_TRUE;
 }
 
@@ -610,10 +532,7 @@ static void gst_native_set_notifytime(JNIEnv* env, jobject thiz, int time) {
 }
 
 static void gst_native_reset(JNIEnv* env, jobject thiz) {
-    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
-    gst_native_pause(env, thiz);
-    g_object_set(data->pipeline, "volume", 1.0f, NULL);
-    gst_native_set_position(env, thiz, 0);
+    gst_native_init(env, thiz);
 }
 
 static int gst_native_get_position(JNIEnv* env, jobject thiz) {
@@ -672,6 +591,7 @@ static JNINativeMethod native_methods[] = {
   { "nativeGetDuration", "()I", (int*) gst_native_get_duration},
   { "nativePlay", "()V", (void *) gst_native_play},
   { "nativePause", "()V", (void *) gst_native_pause},
+  { "nativeStop", "()V", (void *) gst_native_pause},
   { "nativeClassInit", "()Z", (void *) gst_native_class_init},
   { "nativeReset", "()V", (void *) gst_native_reset},
   { "nativeIsPlaying", "()Z", (gboolean *) gst_native_isplaying},
