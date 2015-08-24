@@ -10,6 +10,7 @@ import org.apache.http.params.HttpParams;
 import org.freedesktop.gstreamer.GStreamer;
 
 import android.content.Context;
+import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -163,10 +164,13 @@ public class GPlayer {
     };
 
     private static GPlayer instance;
+    
+    private ConnectionChangeReceiver ccr = new ConnectionChangeReceiver();
 
     public GPlayer(Context context) {
         this.context = context;
         instance = this;
+        context.registerReceiver(ccr, new IntentFilter("android.net.conn.CONNECTIVITY_CHANGE"));
         try {
             GStreamer.init(context);
         } catch (Exception e) {
@@ -214,6 +218,7 @@ public class GPlayer {
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
+        context.unregisterReceiver(ccr);
         nativeFinalize();
     }
     

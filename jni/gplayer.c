@@ -48,6 +48,7 @@ typedef struct _CustomData {
   gboolean network_error;
   GSource *timeout_source;
   gint buffering_level;
+  gint time_after_error;
 } CustomData;
 
 /* playbin2 flags */
@@ -150,6 +151,11 @@ static void gplayer_prepare_complete (CustomData *data) {
   }
 }
 
+void buffer_size(CustomData *data, int size) {
+    GST_DEBUG ("Set buffer size to %i", size);
+    g_object_set (data->pipeline, "max-size-bytes", (guint)DEFAULT_BUFFER, NULL);
+}
+
 /* If we have pipeline and it is running, query the current position and clip duration and inform
  * the application */
 static gboolean gplayer_notify_time (CustomData *data) {
@@ -185,6 +191,11 @@ static gboolean gplayer_notify_time (CustomData *data) {
         if (data->network_error == TRUE) {
             GST_DEBUG ("Retrying setting state to PLAYING");
             data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+        } else {
+            if (data->time_after_error == 5) {
+                buffer_size(data, DEFAULT_BUFFER);
+            }
+            data->time_after_error++;
         }
     }
   return TRUE;
@@ -251,6 +262,7 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   g_clear_error (&err);
 //  data->target_state = GST_STATE_NULL;
   data->network_error = TRUE;
+  data->time_after_error = 0;
   gst_element_set_state (data->pipeline, GST_STATE_NULL);
 }
 
@@ -296,11 +308,6 @@ static void clock_lost_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   }
 }
 
-void buffer_size(CustomData *data, int size) {
-    GST_DEBUG ("Set buffer size to %i", size);
-    g_object_set (data->pipeline, "max-size-bytes", (guint)DEFAULT_BUFFER, NULL);
-}
-
 /* Notify UI about pipeline state changes */
 static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   GstState old_state, new_state, pending_state;
@@ -318,7 +325,6 @@ static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     if (new_state == GST_STATE_PLAYING) {
         data->network_error = FALSE;
         gplayer_playback_running(data);
-        buffer_size(data, DEFAULT_BUFFER);
     }
   }
 }
