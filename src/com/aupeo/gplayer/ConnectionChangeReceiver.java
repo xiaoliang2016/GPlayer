@@ -15,6 +15,8 @@ public class ConnectionChangeReceiver extends BroadcastReceiver
         NetworkInfo ni = GPlayerConnectivity.getNetworkInfo(context);
         if (ni != null) {
             Log.d("GPlayer", "network speed: " + GPlayerConnectivity.isConnectionFast(ni.getType(), ni.getSubtype()));
+        } else {
+            Log.d("GPlayer", "no network!");
         }
     }
 }

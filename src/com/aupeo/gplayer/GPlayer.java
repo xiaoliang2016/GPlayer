@@ -163,6 +163,7 @@ public class GPlayer {
                     @SuppressWarnings("deprecation")
                     @Override
                     public void run() {
+                            Log.d("GPlayer", "poke google to force network init!");
                             HttpGet httpGet = new HttpGet("http://www.google.com");
                             HttpParams httpParameters = new BasicHttpParams();
                             HttpConnectionParams.setConnectionTimeout(httpParameters, 1000);

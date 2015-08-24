@@ -295,11 +295,8 @@ static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
                   gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
               }
               is_buffering = TRUE;
-          } else {
-              if (data->buffering_level < 50) {
-                  buffer_size(data, SMALL_BUFFER);
-              }
           }
+          buffer_size(data, SMALL_BUFFER);
       } else {
           is_buffering = FALSE;
       }
