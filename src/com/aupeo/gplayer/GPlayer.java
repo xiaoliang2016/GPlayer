@@ -2,7 +2,6 @@ package com.aupeo.gplayer;
 
 import java.io.IOException;
 
-import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
@@ -15,6 +14,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
+@SuppressWarnings("deprecation")
 public class GPlayer {
     
     public interface OnTimeListener
