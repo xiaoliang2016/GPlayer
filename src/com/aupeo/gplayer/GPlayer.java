@@ -1,8 +1,18 @@
 package com.aupeo.gplayer;
 
+import java.io.IOException;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
 import org.freedesktop.gstreamer.GStreamer;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 public class GPlayer {
@@ -46,6 +56,8 @@ public class GPlayer {
     {
         boolean onError(int errorCode);
     }
+
+    protected static final int GPLAYER_NETWORK_CHANGE = 0;
    
     public void setOnErrorListener(OnErrorListener listener)
     {
@@ -127,6 +139,8 @@ public class GPlayer {
     
     private native void nativeReset();
     
+    private native void nativeSetBufferSize(int size);
+    
     private native boolean nativeIsPlaying();
     
     private native void nativeSetVolume(float left, float right);
@@ -134,8 +148,25 @@ public class GPlayer {
     private static native boolean nativeClassInit(); // Initialize native class: cache Method IDs for callbacks
 
     private long native_custom_data;      // Native code will use this to keep private data
+    
+    private final Context context;
+    
+    public Handler handler = new Handler() {
+
+        @Override
+        public void handleMessage(Message msg) {
+            if (msg.what == GPLAYER_NETWORK_CHANGE) {
+                nativeSetBufferSize(64000);
+            }
+        }
+        
+    };
+
+    private static GPlayer instance;
 
     public GPlayer(Context context) {
+        this.context = context;
+        instance = this;
         try {
             GStreamer.init(context);
         } catch (Exception e) {
@@ -194,6 +225,7 @@ public class GPlayer {
     public void onTime(int time) {
         Log.d("GPlayer", "onTime: [" + time + "]");
         mOnTimeListener.onTime(time);
+        GPlayerConnectivity.getNetworkInfo(context);
     }
     
     public void onPlayComplete() {
@@ -238,9 +270,36 @@ public class GPlayer {
         nativeSetVolume(left, right);
     }
     
+    public void networkChanged() {
+        handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
+        new Thread(new Runnable() {
+            
+            @SuppressWarnings("deprecation")
+            @Override
+            public void run() {
+                    HttpGet httpGet = new HttpGet("http://www.google.com");
+                    HttpParams httpParameters = new BasicHttpParams();
+                    HttpConnectionParams.setConnectionTimeout(httpParameters, 1000);
+                    HttpConnectionParams.setSoTimeout(httpParameters, 1000);
+
+                    DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
+                    try {
+                        httpClient.execute(httpGet);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+            }
+        }).start();
+    }
+    
     static {
         System.loadLibrary("gstreamer_android");
         System.loadLibrary("gplayer");
         nativeClassInit();
     }
+
+    public static GPlayer getInstance() {
+        return instance;
+    }    
 }

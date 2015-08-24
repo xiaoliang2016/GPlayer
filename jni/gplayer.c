@@ -8,6 +8,7 @@ GST_DEBUG_CATEGORY_STATIC (debug_category);
 #define GST_CAT_DEFAULT debug_category
 
 #define GRAPH_LENGTH 80
+#define DEFAULT_BUFFER 378000
 
 /*
  * These macros provide a way to store the native pointer to CustomData, which might be 32 or 64 bits, into
@@ -243,7 +244,7 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   gchar *message_string;
 
   gst_message_parse_error (msg, &err, &debug_info);
-  gplayer_error(err->code, data);
+  //gplayer_error(err->code, data);
 
   GST_DEBUG ("error_cb: %s", debug_info);
   g_free (debug_info);
@@ -295,6 +296,11 @@ static void clock_lost_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   }
 }
 
+void buffer_size(CustomData *data, int size) {
+    GST_DEBUG ("Set buffer size to %i", size);
+    g_object_set (data->pipeline, "max-size-bytes", (guint)DEFAULT_BUFFER, NULL);
+}
+
 /* Notify UI about pipeline state changes */
 static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   GstState old_state, new_state, pending_state;
@@ -312,6 +318,7 @@ static void state_changed_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     if (new_state == GST_STATE_PLAYING) {
         data->network_error = FALSE;
         gplayer_playback_running(data);
+        buffer_size(data, DEFAULT_BUFFER);
     }
   }
 }
@@ -378,8 +385,9 @@ static void *app_function (void *userdata) {
   g_signal_connect (G_OBJECT (bus), "message::clock-lost", (GCallback)clock_lost_cb, data);
   gst_object_unref (bus);
 
-  //g_object_set (data->pipeline, "ring-buffer-max-size", (guint64)4000000, NULL);
-  //g_object_set (data->pipeline, "buffer-size", (gint)4000000, NULL);
+  g_object_set (data->pipeline, "use-buffering", (gboolean)TRUE, NULL);
+  g_object_set (data->pipeline, "use-rate-estimate", (gboolean)TRUE, NULL);
+  g_object_set (data->pipeline, "low-percent", (gint)90, NULL);
 
   /* Create a GLib Main Loop and set it to run */
   GST_DEBUG ("Entering main loop... (CustomData:%p)", data);
@@ -579,6 +587,11 @@ static void gst_native_volume(JNIEnv* env, jobject thiz, float left, float right
     g_object_set(data->pipeline, "volume", (float)((left+right)/2), NULL);
 }
 
+static void gst_native_buffer_size(JNIEnv* env, jobject thiz, int size) {
+    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    buffer_size(data, size);
+}
+
 /* List of implemented native methods */
 static JNINativeMethod native_methods[] = {
   { "nativeInit", "()V", (void *) gst_native_init},
@@ -595,7 +608,8 @@ static JNINativeMethod native_methods[] = {
   { "nativeClassInit", "()Z", (void *) gst_native_class_init},
   { "nativeReset", "()V", (void *) gst_native_reset},
   { "nativeIsPlaying", "()Z", (gboolean *) gst_native_isplaying},
-  { "nativeSetVolume", "(FF)V", (gboolean *) gst_native_volume}
+  { "nativeSetVolume", "(FF)V", (gboolean *) gst_native_volume},
+  { "nativeSetBufferSize", "(I)V", (void *) gst_native_buffer_size}
 };
 
 /* Library initializer */
