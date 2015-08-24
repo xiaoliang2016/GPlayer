@@ -8,6 +8,7 @@ GST_DEBUG_CATEGORY_STATIC (debug_category);
 #define GST_CAT_DEFAULT debug_category
 
 #define GRAPH_LENGTH 80
+#define SMALL_BUFFER 64000
 #define DEFAULT_BUFFER 378000
 
 /*
@@ -294,6 +295,10 @@ static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
                   gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
               }
               is_buffering = TRUE;
+          } else {
+              if (data->buffering_level < 50) {
+                  buffer_size(data, SMALL_BUFFER);
+              }
           }
       } else {
           is_buffering = FALSE;

@@ -158,6 +158,30 @@ public class GPlayer {
         public void handleMessage(Message msg) {
             if (msg.what == GPLAYER_NETWORK_CHANGE) {
                 nativeSetBufferSize(64000);
+                new Thread(new Runnable() {
+                    
+                    @SuppressWarnings("deprecation")
+                    @Override
+                    public void run() {
+                            HttpGet httpGet = new HttpGet("http://www.google.com");
+                            HttpParams httpParameters = new BasicHttpParams();
+                            HttpConnectionParams.setConnectionTimeout(httpParameters, 1000);
+                            HttpConnectionParams.setSoTimeout(httpParameters, 1000);
+
+                            DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
+                            try {
+                                httpClient.execute(httpGet);
+                            } catch (IOException e) {
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e1) {
+                                    // TODO Auto-generated catch block
+                                    e1.printStackTrace();
+                                }
+                                handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
+                            }
+                    }
+                }).start();
             }
         }
         
@@ -277,25 +301,6 @@ public class GPlayer {
     
     public void networkChanged() {
         handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
-        new Thread(new Runnable() {
-            
-            @SuppressWarnings("deprecation")
-            @Override
-            public void run() {
-                    HttpGet httpGet = new HttpGet("http://www.google.com");
-                    HttpParams httpParameters = new BasicHttpParams();
-                    HttpConnectionParams.setConnectionTimeout(httpParameters, 1000);
-                    HttpConnectionParams.setSoTimeout(httpParameters, 1000);
-
-                    DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
-                    try {
-                        httpClient.execute(httpGet);
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-            }
-        }).start();
     }
     
     static {
