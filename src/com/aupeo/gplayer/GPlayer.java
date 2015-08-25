@@ -166,8 +166,8 @@ public class GPlayer {
                             Log.d("GPlayer", "poke google to force network init!");
                             HttpGet httpGet = new HttpGet("http://www.google.com");
                             HttpParams httpParameters = new BasicHttpParams();
-                            HttpConnectionParams.setConnectionTimeout(httpParameters, 1000);
-                            HttpConnectionParams.setSoTimeout(httpParameters, 1000);
+                            HttpConnectionParams.setConnectionTimeout(httpParameters, 500);
+                            HttpConnectionParams.setSoTimeout(httpParameters, 500);
 
                             DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
                             try {
