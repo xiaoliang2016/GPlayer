@@ -9,7 +9,7 @@ GST_DEBUG_CATEGORY_STATIC (debug_category);
 
 #define GRAPH_LENGTH 80
 #define SMALL_BUFFER 64000
-#define DEFAULT_BUFFER 2097152
+#define DEFAULT_BUFFER 2097152*2
 
 /*
  * These macros provide a way to store the native pointer to CustomData, which might be 32 or 64 bits, into
@@ -45,7 +45,6 @@ typedef struct _CustomData {
   gboolean network_error;
   GSource *timeout_source;
   gint buffering_level;
-  gint time_after_error;
   GstElement *source;
   GstElement *convert;
   GstElement *buffer;
@@ -110,6 +109,45 @@ static JNIEnv *get_jni_env (void) {
   }
 
   return env;
+}
+
+static void queue_overrun(GstElement *queue, gpointer data)
+{
+  guint cur_bytes;
+  guint max_bytes;
+  guint diff_bytes;
+  g_object_get(G_OBJECT (queue), "current-level-bytes", &cur_bytes, NULL);
+  g_object_get(G_OBJECT (queue), "max-size-bytes", &max_bytes, NULL);
+  diff_bytes = cur_bytes - max_bytes;
+  gint64 seconds = GST_TIME_AS_SECONDS (gst_clock_get_time(gst_element_get_clock(GST_ELEMENT (queue))));
+
+  GST_DEBUG("%" G_GINT64_FORMAT "\t%s\toverrun by %d bytes\n", seconds, gst_element_get_name(queue), diff_bytes);
+}
+
+static void queue_underrun(GstElement *queue, gpointer data)
+{
+  guint cur_bytes;
+  guint max_bytes;
+  guint diff_bytes;
+  g_object_get(G_OBJECT (queue), "current-level-bytes", &cur_bytes, NULL);
+  g_object_get(G_OBJECT (queue), "max-size-bytes", &max_bytes, NULL);
+  diff_bytes = cur_bytes - max_bytes;
+  gint64 seconds = GST_TIME_AS_SECONDS (gst_clock_get_time(gst_element_get_clock(GST_ELEMENT (queue))));
+
+  GST_DEBUG("%" G_GINT64_FORMAT "\t%s\tunderrun by %d bytes\n", seconds, gst_element_get_name(queue), diff_bytes);
+}
+
+static void queue_running(GstElement *queue, gpointer data)
+{
+  guint cur_bytes;
+  guint max_bytes;
+  guint diff_bytes;
+  g_object_get(G_OBJECT (queue), "current-level-bytes", &cur_bytes, NULL);
+  g_object_get(G_OBJECT (queue), "max-size-bytes", &max_bytes, NULL);
+  diff_bytes = cur_bytes - max_bytes;
+  gint64 seconds = GST_TIME_AS_SECONDS (gst_clock_get_time(gst_element_get_clock(GST_ELEMENT (queue))));
+
+  GST_DEBUG("%" G_GINT64_FORMAT "\t%s\trunning by %d bytes\n", seconds, gst_element_get_name(queue), diff_bytes);
 }
 
 static void got_location (GstObject *gstobject, GstObject *prop_object, GParamSpec *prop, gpointer data) {
@@ -210,11 +248,6 @@ static gboolean gplayer_notify_time (CustomData *data) {
         if (data->network_error == TRUE) {
             GST_DEBUG ("Retrying setting state to PLAYING");
             data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-        } else {
-            if (data->time_after_error == 5) {
-                buffer_size(data, DEFAULT_BUFFER);
-            }
-            data->time_after_error++;
         }
     }
   return TRUE;
@@ -279,9 +312,8 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
   GST_DEBUG ("error_cb: %s", debug_info);
   g_free (debug_info);
   g_clear_error (&err);
-//  data->target_state = GST_STATE_NULL;
+  data->target_state = GST_STATE_NULL;
   data->network_error = TRUE;
-  data->time_after_error = 0;
   gst_element_set_state (data->pipeline, GST_STATE_NULL);
 }
 
@@ -309,17 +341,19 @@ static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
       GST_DEBUG ("buffering: %d", data->buffering_level);
       if (data->buffering_level < 100) {
           if (!is_buffering) {
-              if (data->buffering_level > 25) {
+              if (data->buffering_level > 5) {
                   gst_element_set_state (data->pipeline, GST_STATE_PLAYING);
               }
               is_buffering = TRUE;
           }
       } else {
+/*
           if (data->buffering_level < 50) {
-              buffer_size(data, SMALL_BUFFER);
-          } else {
               buffer_size(data, DEFAULT_BUFFER);
+          } else {
+              buffer_size(data, SMALL_BUFFER);
           }
+*/
           is_buffering = FALSE;
       }
 }
@@ -394,6 +428,9 @@ static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *dat
     goto exit;
   }
 
+  if (gst_element_link (data->convert, data->sink)) {
+      GST_DEBUG ("Elements could not be linked.\n");
+  }
   /* Attempt the link */
   ret = gst_pad_link (new_pad, sink_pad);
   if (GST_PAD_LINK_FAILED (ret)) {
@@ -411,14 +448,72 @@ exit:
   gst_object_unref (sink_pad);
 }
 
+static void *init_pipeline(CustomData *data) {
+    GstBus *bus;
+    GSource *bus_source;
+    GError *error = NULL;
+    guint flags;
+
+    /* Build pipeline */
+    data->source = gst_element_factory_make ("uridecodebin", "source");
+    data->buffer = gst_element_factory_make ("queue2", "buffer");
+    data->convert = gst_element_factory_make ("audioconvert", "convert");
+    data->sink = gst_element_factory_make ("autoaudiosink", "sink");
+
+    data->pipeline = gst_pipeline_new ("test-pipeline");
+
+    if (!data->pipeline || !data->source || !data->convert || !data->buffer || !data->sink) {
+      gplayer_error(-1, data);
+      GST_DEBUG ("Not all elements could be created.\n");
+      return NULL;
+    }
+
+    gst_bin_add_many (GST_BIN (data->pipeline), data->source, data->convert, data->buffer, data->sink, NULL);
+      if (!gst_element_link (data->buffer, data->convert) || !gst_element_link (data->convert, data->sink)) {
+          GST_DEBUG ("Elements could not be linked.\n");
+        gst_object_unref (data->pipeline);
+        return NULL;
+      }
+
+    g_object_get (data->pipeline, "flags", &flags, NULL);
+    flags &= ~GST_PLAY_FLAG_TEXT;
+    g_object_set (data->pipeline, "flags", flags, NULL);
+
+    g_signal_connect (data->source, "pad-added", (GCallback)pad_added_handler, data);
+    g_signal_connect(data->buffer, "overrun", (GCallback) queue_overrun, NULL);
+    g_signal_connect(data->buffer, "running", (GCallback) queue_running, NULL);
+    g_signal_connect(data->buffer, "underrun", (GCallback) queue_underrun, NULL);
+
+    data->target_state = GST_STATE_READY;
+    gst_element_set_state(data->pipeline, GST_STATE_READY);
+
+    bus = gst_element_get_bus (data->pipeline);
+    bus_source = gst_bus_create_watch (bus);
+    g_source_set_callback (bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
+    g_source_attach (bus_source, data->context);
+    g_source_unref (bus_source);
+    g_signal_connect (G_OBJECT (bus), "message::error", (GCallback)error_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::eos", (GCallback)eos_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::state-changed", (GCallback)state_changed_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::duration", (GCallback)duration_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::buffering", (GCallback)buffering_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::clock-lost", (GCallback)clock_lost_cb, data);
+  //  g_signal_connect (data->pipeline, "deep-notify::temp-location", (GCallback)got_location, data);
+    gst_object_unref (bus);
+
+    g_object_set (data->buffer, "use-buffering", (gboolean)TRUE, NULL);
+    g_object_set (data->buffer, "max-size-buffers", (guint)100, NULL);
+    //g_object_set (data->buffer, "ring-buffer-max-size", (guint64)4096 * 1024, NULL);
+    //g_object_set (data->buffer, "temp-template", "/storage/sdcard0/XXXXXX", NULL);
+    g_object_set (data->buffer, "low-percent", (gint)95, NULL);
+
+    return TRUE;
+}
+
 /* Main method for the native code. This is executed on its own thread. */
 static void *app_function (void *userdata) {
   JavaVMAttachArgs args;
-  GstBus *bus;
   CustomData *data = (CustomData *)userdata;
-  GSource *bus_source;
-  GError *error = NULL;
-  guint flags;
 
   GST_DEBUG ("Creating pipeline in CustomData at %p", data);
 
@@ -426,55 +521,9 @@ static void *app_function (void *userdata) {
   data->context = g_main_context_new ();
   g_main_context_push_thread_default(data->context);
 
-  /* Build pipeline */
-  data->source = gst_element_factory_make ("uridecodebin", "source");
-  data->buffer = gst_element_factory_make ("queue2", "buffer");
-  data->convert = gst_element_factory_make ("audioconvert", "convert");
-  data->sink = gst_element_factory_make ("autoaudiosink", "sink");
-
-  data->pipeline = gst_pipeline_new ("test-pipeline");
-
-  if (!data->pipeline || !data->source || !data->convert || !data->buffer || !data->sink) {
-    gplayer_error(-1, data);
-    GST_DEBUG ("Not all elements could be created.\n");
-    return NULL;
-  }
-
-  gst_bin_add_many (GST_BIN (data->pipeline), data->source, data->convert, data->buffer, data->sink, NULL);
-    if (!gst_element_link (data->buffer, data->convert) || !gst_element_link (data->convert, data->sink)) {
-        GST_DEBUG ("Elements could not be linked.\n");
-      gst_object_unref (data->pipeline);
+  if (init_pipeline(data) == NULL) {
       return NULL;
-    }
-
-  g_object_get (data->pipeline, "flags", &flags, NULL);
-  flags &= ~GST_PLAY_FLAG_TEXT;
-  g_object_set (data->pipeline, "flags", flags, NULL);
-
-  g_signal_connect (data->source, "pad-added", (GCallback)pad_added_handler, data);
-
-  data->target_state = GST_STATE_READY;
-  gst_element_set_state(data->pipeline, GST_STATE_READY);
-
-  bus = gst_element_get_bus (data->pipeline);
-  bus_source = gst_bus_create_watch (bus);
-  g_source_set_callback (bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
-  g_source_attach (bus_source, data->context);
-  g_source_unref (bus_source);
-  g_signal_connect (G_OBJECT (bus), "message::error", (GCallback)error_cb, data);
-  g_signal_connect (G_OBJECT (bus), "message::eos", (GCallback)eos_cb, data);
-  g_signal_connect (G_OBJECT (bus), "message::state-changed", (GCallback)state_changed_cb, data);
-  g_signal_connect (G_OBJECT (bus), "message::duration", (GCallback)duration_cb, data);
-  g_signal_connect (G_OBJECT (bus), "message::buffering", (GCallback)buffering_cb, data);
-  g_signal_connect (G_OBJECT (bus), "message::clock-lost", (GCallback)clock_lost_cb, data);
-//  g_signal_connect (data->pipeline, "deep-notify::temp-location", (GCallback)got_location, data);
-  gst_object_unref (bus);
-
-  g_object_set (data->buffer, "use-buffering", (gboolean)TRUE, NULL);
-  g_object_set (data->buffer, "max-size-buffers", (guint)100, NULL);
-  //g_object_set (data->buffer, "ring-buffer-max-size", (guint64)4096 * 1024, NULL);
-  //g_object_set (data->buffer, "temp-template", "/storage/sdcard0/XXXXXX", NULL);
-  g_object_set (data->buffer, "low-percent", (gint)90, NULL);
+  }
 
   /* Create a GLib Main Loop and set it to run */
   GST_DEBUG ("Entering main loop... (CustomData:%p)", data);
@@ -532,6 +581,7 @@ static void gst_native_finalize (JNIEnv* env, jobject thiz) {
 void gst_native_set_uri (JNIEnv* env, jobject thiz, jstring uri) {
   CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
   if (!data || !data->pipeline) return;
+  init_pipeline(data);
   const jbyte *char_uri = (*env)->GetStringUTFChars (env, uri, NULL);
   gchar *url = gst_filename_to_uri(char_uri, NULL);
   GST_DEBUG ("Setting URI to %s", url);
@@ -547,6 +597,7 @@ void gst_native_set_uri (JNIEnv* env, jobject thiz, jstring uri) {
 
 void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri) {
   CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+  init_pipeline(data);
   if (!data || !data->pipeline) return;
   const jbyte *char_uri = (*env)->GetStringUTFChars (env, uri, NULL);
   GST_DEBUG ("Setting URL to %s", char_uri);
