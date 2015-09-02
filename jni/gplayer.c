@@ -9,7 +9,7 @@ GST_DEBUG_CATEGORY_STATIC (debug_category);
 
 #define GRAPH_LENGTH 80
 #define SMALL_BUFFER 64000
-#define DEFAULT_BUFFER 2097152
+#define DEFAULT_BUFFER 2097152*2
 
 /*
  * These macros provide a way to store the native pointer to CustomData, which might be 32 or 64 bits, into
@@ -45,7 +45,6 @@ typedef struct _CustomData {
   gboolean network_error;
   GSource *timeout_source;
   gint buffering_level;
-  gint time_after_error;
   GstElement *source;
   GstElement *convert;
   GstElement *buffer;
@@ -215,11 +214,6 @@ static gboolean gplayer_notify_time (CustomData *data) {
         if (data->network_error == TRUE) {
             GST_DEBUG ("Retrying setting state to PLAYING");
             data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-        } else {
-            if (data->time_after_error == 5) {
-                buffer_size(data, DEFAULT_BUFFER);
-            }
-            data->time_after_error++;
         }
     }
   return TRUE;
@@ -304,15 +298,18 @@ static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
               if (data->buffering_level > 25) {
                   data->target_state = GST_STATE_PLAYING;
                   data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+
               }
               is_buffering = TRUE;
           }
       } else {
+/*
           if (data->buffering_level < 50) {
-              buffer_size(data, SMALL_BUFFER);
-          } else {
               buffer_size(data, DEFAULT_BUFFER);
+          } else {
+              buffer_size(data, SMALL_BUFFER);
           }
+*/
           is_buffering = FALSE;
       }
 }
@@ -387,6 +384,9 @@ static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *dat
     goto exit;
   }
 
+  if (gst_element_link (data->convert, data->sink)) {
+      GST_DEBUG ("Elements could not be linked.\n");
+  }
   /* Attempt the link */
   ret = gst_pad_link (new_pad, sink_pad);
   if (GST_PAD_LINK_FAILED (ret)) {
@@ -476,6 +476,7 @@ static void build_pipeline(CustomData *data) {
     g_signal_connect (G_OBJECT (bus), "message::buffering", (GCallback)buffering_cb, data);
     g_signal_connect (G_OBJECT (bus), "message::clock-lost", (GCallback)clock_lost_cb, data);
     gst_object_unref (bus);
+
 }
 
 /* Main method for the native code. This is executed on its own thread. */
