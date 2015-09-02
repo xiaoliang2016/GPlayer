@@ -122,9 +122,9 @@ public class GPlayer {
 
     private native void nativeSetPosition(int milliseconds); // Seek to the indicated position, in milliseconds
 
-    private native void nativeSetUri(String uri); // Set the URI of the media to play
+    private native void nativeSetUri(String uri, boolean seek); // Set the URI of the media to play
 
-    private native void nativeSetUrl(String url); // Set the URI of the media to play
+    private native void nativeSetUrl(String url, boolean seek); // Set the URI of the media to play
     
     private native void nativeSetNotifyTime(int time);
     
@@ -204,11 +204,11 @@ public class GPlayer {
         nativeInit();
     }
     
-    public void setDataSource(String uri) {
+    public void setDataSource(String uri, boolean seek) {
         if (uri.contains("http")) {
-            nativeSetUrl(uri);
+            nativeSetUrl(uri, true);
         } else {
-            nativeSetUri(uri);
+            nativeSetUri(uri, false);
         }
     }
     
