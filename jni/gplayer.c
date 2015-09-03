@@ -8,8 +8,8 @@ GST_DEBUG_CATEGORY_STATIC (debug_category);
 #define GST_CAT_DEFAULT debug_category
 
 #define GRAPH_LENGTH 80
-#define SMALL_BUFFER 64000
-#define DEFAULT_BUFFER 2097152*2
+#define SMALL_BUFFER 370000
+#define DEFAULT_BUFFER 2097152
 
 /*
  * These macros provide a way to store the native pointer to CustomData, which might be 32 or 64 bits, into
@@ -50,6 +50,7 @@ typedef struct _CustomData {
   GstElement *buffer;
   GstElement *sink;
   gboolean allow_seek;
+  int notify_time;
 } CustomData;
 
 /* playbin2 flags */
@@ -69,10 +70,11 @@ static jmethodID gplayer_playback_complete_id;
 static jmethodID gplayer_initialized_method_id;
 static jmethodID gplayer_prepared_method_id;
 static jmethodID gplayer_playback_running_id;
-static gboolean is_buffering;
+static jmethodID gplayer_metadata_method_id;
 GstState target_state;
 
 static void build_pipeline(CustomData *data);
+static void set_notifyfunction(CustomData *data);
 
 /*
  * Private methods
@@ -155,15 +157,34 @@ static void gplayer_prepare_complete (CustomData *data) {
   }
 }
 
-void buffer_size(CustomData *data, int size) {
-    GST_DEBUG("Set buffer size to %i", size);
-    g_object_set(data->buffer, "use-buffering", (gboolean) TRUE,
-    NULL);
-    g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
-    g_object_set(data->buffer, "use-rate-estimate", (gboolean) TRUE,
-    NULL);
-    g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
-    g_object_set(data->buffer, "max-size-time", (guint64) 20000000000, NULL);
+static void gplayer_metadata_update (CustomData *data, const gchar *metadata) {
+  JNIEnv *env = get_jni_env ();
+  GST_DEBUG ("Sending Metadata Event");
+  (*env)->CallVoidMethod (env, data->app, gplayer_metadata_method_id, ((*env)->NewStringUTF(env, metadata)));
+  if ((*env)->ExceptionCheck (env)) {
+    GST_ERROR ("Failed to call Java method");
+    (*env)->ExceptionClear (env);
+  }
+}
+
+void buffer_size(CustomData *data, int size)
+{
+    guint maxsizebytes;
+    g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
+
+    if (size != maxsizebytes)
+    {
+        GST_DEBUG("Set buffer size to %i", size);
+        g_object_set(data->source, "buffer-size", (guint) size, NULL);
+        g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
+        g_object_set(data->source, "download", (gboolean) TRUE, NULL);
+
+        g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
+        g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
+        g_object_set(data->buffer, "use-rate-estimate", (gboolean) TRUE, NULL);
+        g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
+        g_object_set(data->buffer, "max-size-time", (guint64) 20000000000, NULL);
+    }
 }
 
 /* If we have pipeline and it is running, query the current position and clip duration and inform
@@ -262,6 +283,56 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     }
 }
 
+static void print_one_tag (const GstTagList * list, const gchar * tag, CustomData *data)
+{
+  int i, num;
+
+  num = gst_tag_list_get_tag_size (list, tag);
+  for (i = 0; i < num; ++i) {
+    const GValue *val;
+
+    /* Note: when looking for specific tags, use the gst_tag_list_get_xyz() API,
+     * we only use the GValue approach here because it is more generic */
+    val = gst_tag_list_get_value_index (list, tag, i);
+    if (G_VALUE_HOLDS_STRING (val)) {
+      GST_DEBUG ("\t%20s : %s\n", tag, g_value_get_string (val));
+      if (strcmp(tag, "title") == 0) {
+          gplayer_metadata_update(data, g_value_get_string (val));
+      }
+    } else if (G_VALUE_HOLDS_UINT (val)) {
+      GST_DEBUG ("\t%20s : %u\n", tag, g_value_get_uint (val));
+    } else if (G_VALUE_HOLDS_DOUBLE (val)) {
+      GST_DEBUG ("\t%20s : %g\n", tag, g_value_get_double (val));
+    } else if (G_VALUE_HOLDS_BOOLEAN (val)) {
+      GST_DEBUG ("\t%20s : %s\n", tag,
+          (g_value_get_boolean (val)) ? "true" : "false");
+    } else if (GST_VALUE_HOLDS_BUFFER (val)) {
+      GstBuffer *buf = gst_value_get_buffer (val);
+      guint buffer_size = gst_buffer_get_size (buf);
+
+      GST_DEBUG ("\t%20s : buffer of size %u\n", tag, buffer_size);
+    } else if (GST_VALUE_HOLDS_DATE_TIME (val)) {
+      GstDateTime *dt = g_value_get_boxed (val);
+      gchar *dt_str = gst_date_time_to_iso8601_string (dt);
+
+      GST_DEBUG ("\t%20s : %s\n", tag, dt_str);
+      g_free (dt_str);
+    } else {
+      GST_DEBUG ("\t%20s : tag of type '%s'\n", tag, G_VALUE_TYPE_NAME (val));
+    }
+  }
+}
+
+static void tag_cb(GstBus *bus, GstMessage *msg, CustomData *data)
+{
+    GstTagList *tags = NULL;
+    gst_message_parse_tag(msg, &tags);
+    GST_DEBUG("Got tags from element %s:\n", GST_OBJECT_NAME(msg->src));
+    gst_tag_list_foreach(tags, (GstTagForeachFunc)print_one_tag, data);
+    gst_tag_list_unref(tags);
+    gst_message_unref(msg);
+}
+
 /* Called when the End Of the Stream is reached. Just move to the beginning of the media and pause. */
 static void eos_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     if (!data->network_error && data->target_state >= GST_STATE_PLAYING)
@@ -286,32 +357,22 @@ static void duration_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
 
 /* Called when buffering messages are received. We inform the UI about the current buffering level and
  * keep the pipeline paused until 100% buffering is reached. At that point, set the desired state. */
-static void buffering_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
+static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data)
+{
 
-  if (data->is_live)
-    return;
+    if (data->is_live)
+        return;
 
-  gst_message_parse_buffering (msg, &data->buffering_level);
-      GST_DEBUG ("buffering: %d", data->buffering_level);
-      if (data->buffering_level < 100) {
-          if (!is_buffering) {
-              if (data->buffering_level > 25) {
-                  data->target_state = GST_STATE_PLAYING;
-                  data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-
-              }
-              is_buffering = TRUE;
-          }
-      } else {
-/*
-          if (data->buffering_level < 50) {
-              buffer_size(data, DEFAULT_BUFFER);
-          } else {
-              buffer_size(data, SMALL_BUFFER);
-          }
-*/
-          is_buffering = FALSE;
-      }
+    gst_message_parse_buffering(msg, &data->buffering_level);
+    GST_DEBUG("buffering: %d", data->buffering_level);
+    if (data->buffering_level > 50 && data->target_state >= GST_STATE_PLAYING)
+    {
+        buffer_size(data, DEFAULT_BUFFER);
+        data->target_state = GST_STATE_PLAYING;
+        data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+    } else {
+        buffer_size(data, SMALL_BUFFER);
+    }
 }
 
 /* Called when the clock is lost */
@@ -471,6 +532,7 @@ static void build_pipeline(CustomData *data) {
     g_source_unref (bus_source);
     g_signal_connect (G_OBJECT (bus), "message::error", (GCallback)error_cb, data);
     g_signal_connect (G_OBJECT (bus), "message::eos", (GCallback)eos_cb, data);
+    g_signal_connect (G_OBJECT (bus), "message::tag", (GCallback)tag_cb, data);
     g_signal_connect (G_OBJECT (bus), "message::state-changed", (GCallback)state_changed_cb, data);
     g_signal_connect (G_OBJECT (bus), "message::duration", (GCallback)duration_cb, data);
     g_signal_connect (G_OBJECT (bus), "message::buffering", (GCallback)buffering_cb, data);
@@ -562,6 +624,7 @@ void gst_native_set_uri (JNIEnv* env, jobject thiz, jstring uri, jboolean seek) 
   data->allow_seek = seek;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
   gplayer_prepare_complete(data);
+  set_notifyfunction(data);
 }
 
 void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri, jboolean seek) {
@@ -579,6 +642,7 @@ void gst_native_set_url (JNIEnv* env, jobject thiz, jstring uri, jboolean seek) 
   data->allow_seek = seek;
   data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
   gplayer_prepare_complete(data);
+  set_notifyfunction(data);
 }
 
 /* Set pipeline to PLAYING state */
@@ -622,30 +686,40 @@ static jboolean gst_native_class_init (JNIEnv* env, jclass klass) {
   gplayer_playback_running_id = (*env)->GetMethodID (env, klass, "onPlayStarted", "()V");
   gplayer_initialized_method_id = (*env)->GetMethodID (env, klass, "onGPlayerReady", "()V");
   gplayer_prepared_method_id = (*env)->GetMethodID (env, klass, "onPrepared", "()V");
+  gplayer_metadata_method_id = (*env)->GetMethodID (env, klass, "onMetadata", "(Ljava/lang/String;)V");
 
   return JNI_TRUE;
 }
 
-static void gst_native_set_notifytime(JNIEnv* env, jobject thiz, int time) {
+static void set_notifyfunction(CustomData *data)
+{
     GstBus *bus;
     GSource *bus_source;
 
-    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    if (data->notify_time > 0)
+    {
+        bus = gst_element_get_bus(data->pipeline);
+        bus_source = gst_bus_create_watch(bus);
+        g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
+        g_source_attach(bus_source, data->context);
+        g_source_unref(bus_source);
 
-    bus = gst_element_get_bus (data->pipeline);
-    bus_source = gst_bus_create_watch (bus);
-    g_source_set_callback (bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
-    g_source_attach (bus_source, data->context);
-    g_source_unref (bus_source);
-
-    if (data->timeout_source) {
-        g_source_destroy(data->timeout_source);
+        if (data->timeout_source)
+        {
+            g_source_destroy(data->timeout_source);
+        }
+        /* Register a function that GLib will call 4 times per second */
+        data->timeout_source = g_timeout_source_new(data->notify_time);
+        g_source_set_callback(data->timeout_source, (GSourceFunc) gplayer_notify_time, data, NULL);
+        g_source_attach(data->timeout_source, data->context);
+        g_source_unref(data->timeout_source);
     }
-    /* Register a function that GLib will call 4 times per second */
-    data->timeout_source = g_timeout_source_new (time);
-    g_source_set_callback (data->timeout_source, (GSourceFunc)gplayer_notify_time, data, NULL);
-    g_source_attach (data->timeout_source, data->context);
-    g_source_unref (data->timeout_source);
+}
+
+static void gst_native_set_notifytime(JNIEnv* env, jobject thiz, int time) {
+    CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
+    data->notify_time = time;
+    set_notifyfunction(data);
 }
 
 static void gst_native_reset(JNIEnv* env, jobject thiz) {
