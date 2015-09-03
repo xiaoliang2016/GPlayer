@@ -159,7 +159,7 @@ static void gplayer_prepare_complete (CustomData *data) {
 
 static void gplayer_metadata_update (CustomData *data, const gchar *metadata) {
   JNIEnv *env = get_jni_env ();
-  GST_DEBUG ("Sending Prepare Complete Event");
+  GST_DEBUG ("Sending Metadata Event");
   (*env)->CallVoidMethod (env, data->app, gplayer_metadata_method_id, ((*env)->NewStringUTF(env, metadata)));
   if ((*env)->ExceptionCheck (env)) {
     GST_ERROR ("Failed to call Java method");
@@ -296,7 +296,7 @@ static void print_one_tag (const GstTagList * list, const gchar * tag, CustomDat
     val = gst_tag_list_get_value_index (list, tag, i);
     if (G_VALUE_HOLDS_STRING (val)) {
       GST_DEBUG ("\t%20s : %s\n", tag, g_value_get_string (val));
-      if (strcmp(tag, "title")) {
+      if (strcmp(tag, "title") == 0) {
           gplayer_metadata_update(data, g_value_get_string (val));
       }
     } else if (G_VALUE_HOLDS_UINT (val)) {
