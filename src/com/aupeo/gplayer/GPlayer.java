@@ -17,141 +17,147 @@ import android.util.Log;
 
 @SuppressWarnings("deprecation")
 public class GPlayer {
-    
-    public interface OnTimeListener
-    {
+
+    public interface OnTimeListener {
         void onTime(int time);
     }
-    
-    public interface OnGPlayerReadyListener
-    {
+
+    public interface OnGPlayerReadyListener {
         void onGPlayerReady();
     }
-    
-    public interface OnPreparedListener
-    {
+
+    public interface OnGPlayerMetadataListener {
+        void onGPlayerMetadata(String title, String artist);
+    }
+
+    public interface OnPreparedListener {
         void onPrepared();
     }
 
-    public interface OnCompletionListener
-    {
+    public interface OnCompletionListener {
         void onCompletion();
     }
-    
-    public interface OnPlayStartedListener
-    {
+
+    public interface OnPlayStartedListener {
         void onPlayback();
     }
-    
-    public interface OnBufferingUpdateListener
-    {
+
+    public interface OnBufferingUpdateListener {
         void onBufferingUpdate(int percent);
     }
-    
-    public interface OnSeekCompleteListener
-    {
+
+    public interface OnSeekCompleteListener {
         public void onSeekComplete();
     }
-    
-    public interface OnErrorListener
-    {
+
+    public interface OnErrorListener {
         boolean onError(int errorCode);
     }
 
     protected static final int GPLAYER_NETWORK_CHANGE = 0;
-   
-    public void setOnErrorListener(OnErrorListener listener)
-    {
+
+    public void setOnErrorListener(OnErrorListener listener) {
         mOnErrorListener = listener;
     }
 
     private OnErrorListener mOnErrorListener;
-    
-    public void setOnSeekCompleteListener(OnSeekCompleteListener listener)
-    {
+
+    public void setOnSeekCompleteListener(OnSeekCompleteListener listener) {
         mOnSeekCompleteListener = listener;
     }
 
     private OnSeekCompleteListener mOnSeekCompleteListener;
-    
-    public void setOnPlayListener(OnPlayStartedListener listener)
-    {
+
+    public void setOnPlayListener(OnPlayStartedListener listener) {
         mOnPlayStartedListener = listener;
     }
 
     private OnPlayStartedListener mOnPlayStartedListener;
-    
-    public void setOnBufferingUpdateListener(OnBufferingUpdateListener listener)
-    {
+
+    public void setOnBufferingUpdateListener(OnBufferingUpdateListener listener) {
         mOnBufferingUpdateListener = listener;
     }
 
     private OnBufferingUpdateListener mOnBufferingUpdateListener;
-    
-    public void setOnCompletionListener(OnCompletionListener listener)
-    {
+
+    public void setOnCompletionListener(OnCompletionListener listener) {
         mOnCompletionListener = listener;
     }
 
     private OnCompletionListener mOnCompletionListener;
-    
-    public void setOnPreparedListener(OnPreparedListener listener)
-    {
+
+    public void setOnPreparedListener(OnPreparedListener listener) {
         mOnPreparedListener = listener;
     }
-    
+
     private OnPreparedListener mOnPreparedListener;
-    
-    public void setOnTimeListener(OnTimeListener listener)
-    {
+
+    public void setOnTimeListener(OnTimeListener listener) {
         mOnTimeListener = listener;
     }
-    
+
     private OnTimeListener mOnTimeListener;
-    
-    public void setOnGPlayerReadyListener(OnGPlayerReadyListener listener)
-    {
+
+    public void setOnGPlayerReadyListener(OnGPlayerReadyListener listener) {
         mOnGPlayerReadyListener = listener;
     }
-    
+
     private OnGPlayerReadyListener mOnGPlayerReadyListener;
-    
-    private native void nativeInit();     // Initialize native code, build pipeline, etc
 
-    private native void nativeFinalize(); // Destroy pipeline and shutdown native code
+    public void setOnGPlayerMetadataListener(OnGPlayerMetadataListener listener) {
+        mOnGPlayerMetadataListener = listener;
+    }
 
-    private native void nativeSetPosition(int milliseconds); // Seek to the indicated position, in milliseconds
+    private OnGPlayerMetadataListener mOnGPlayerMetadataListener;
 
-    private native void nativeSetUri(String uri, boolean seek); // Set the URI of the media to play
+    private native void nativeInit(); // Initialize native code, build pipeline,
+                                      // etc
 
-    private native void nativeSetUrl(String url, boolean seek); // Set the URI of the media to play
-    
+    private native void nativeFinalize(); // Destroy pipeline and shutdown
+                                          // native code
+
+    private native void nativeSetPosition(int milliseconds); // Seek to the
+                                                             // indicated
+                                                             // position, in
+                                                             // milliseconds
+
+    private native void nativeSetUri(String uri, boolean seek); // Set the URI
+                                                                // of the media
+                                                                // to play
+
+    private native void nativeSetUrl(String url, boolean seek); // Set the URI
+                                                                // of the media
+                                                                // to play
+
     private native void nativeSetNotifyTime(int time);
-    
+
     private native int nativeGetPosition();
-    
+
     private native int nativeGetDuration();
 
-    private native void nativePlay();     // Set pipeline to PLAYING
+    private native void nativePlay(); // Set pipeline to PLAYING
 
-    private native void nativePause();    // Set pipeline to PAUSED
-    
-    private native void nativeStop();    // Set pipeline to STOPPED
-    
+    private native void nativePause(); // Set pipeline to PAUSED
+
+    private native void nativeStop(); // Set pipeline to STOPPED
+
     private native void nativeReset();
-    
+
     private native void nativeSetBufferSize(int size);
-    
+
     private native boolean nativeIsPlaying();
-    
+
     private native void nativeSetVolume(float left, float right);
 
-    private static native boolean nativeClassInit(); // Initialize native class: cache Method IDs for callbacks
+    private static native boolean nativeClassInit(); // Initialize native class:
+                                                     // cache Method IDs for
+                                                     // callbacks
 
-    private long native_custom_data;      // Native code will use this to keep private data
-    
+    private long native_custom_data; // Native code will use this to keep
+                                     // private data
+
     private final Context context;
-    
+
     public Handler handler = new Handler() {
 
         @Override
@@ -159,37 +165,37 @@ public class GPlayer {
             if (msg.what == GPLAYER_NETWORK_CHANGE) {
                 nativeSetBufferSize(64000);
                 new Thread(new Runnable() {
-                    
+
                     @SuppressWarnings("deprecation")
                     @Override
                     public void run() {
-                            Log.d("GPlayer", "poke google to force network init!");
-                            HttpGet httpGet = new HttpGet("http://www.google.com");
-                            HttpParams httpParameters = new BasicHttpParams();
-                            HttpConnectionParams.setConnectionTimeout(httpParameters, 500);
-                            HttpConnectionParams.setSoTimeout(httpParameters, 500);
+                        Log.d("GPlayer", "poke google to force network init!");
+                        HttpGet httpGet = new HttpGet("http://www.google.com");
+                        HttpParams httpParameters = new BasicHttpParams();
+                        HttpConnectionParams.setConnectionTimeout(httpParameters, 500);
+                        HttpConnectionParams.setSoTimeout(httpParameters, 500);
 
-                            DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
+                        DefaultHttpClient httpClient = new DefaultHttpClient(httpParameters);
+                        try {
+                            httpClient.execute(httpGet);
+                        } catch (IOException e) {
                             try {
-                                httpClient.execute(httpGet);
-                            } catch (IOException e) {
-                                try {
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e1) {
-                                    // TODO Auto-generated catch block
-                                    e1.printStackTrace();
-                                }
-                                handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e1) {
+                                // TODO Auto-generated catch block
+                                e1.printStackTrace();
                             }
+                            handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
+                        }
                     }
                 }).start();
             }
         }
-        
+
     };
 
     private static GPlayer instance;
-    
+
     private ConnectionChangeReceiver ccr = new ConnectionChangeReceiver();
 
     public GPlayer(Context context) {
@@ -203,7 +209,7 @@ public class GPlayer {
         }
         nativeInit();
     }
-    
+
     public void setDataSource(String uri, boolean seek) {
         if (uri.contains("http")) {
             nativeSetUrl(uri, true);
@@ -211,42 +217,42 @@ public class GPlayer {
             nativeSetUri(uri, false);
         }
     }
-    
+
     public void setNotifyTime(int time) {
         nativeSetNotifyTime(time);
     }
-    
+
     public void start() {
         nativePlay();
     }
-    
+
     public void pause() {
         nativePause();
     }
-    
+
     public void stop() {
         nativeStop();
     }
-    
+
     public void seekTo(int seek) {
         nativeSetPosition(seek);
     }
-    
+
     public boolean isPlaying() {
         return nativeIsPlaying();
     }
-    
+
     public void release() {
         nativeFinalize();
     }
-    
+
     @Override
     protected void finalize() throws Throwable {
         super.finalize();
         context.unregisterReceiver(ccr);
         nativeFinalize();
     }
-    
+
     public void onError(int errorCode) {
         Log.d("GPlayer", "onError errorCode: " + errorCode);
         mOnErrorListener.onError(errorCode);
@@ -257,7 +263,7 @@ public class GPlayer {
         mOnTimeListener.onTime(time);
         GPlayerConnectivity.getNetworkInfo(context);
     }
-    
+
     public void onPlayComplete() {
         Log.d("GPlayer", "onPlayComplete");
         mOnCompletionListener.onCompletion();
@@ -278,32 +284,42 @@ public class GPlayer {
         mOnPlayStartedListener.onPlayback();
     }
 
+    public void onMetadata(String string) {
+        Log.d("GPlayer", "onMetadata '" + string + "'");
+        if (mOnGPlayerMetadataListener != null) {
+            String meta[] = string.split("\\ \\-\\ ");
+            mOnGPlayerMetadataListener.onGPlayerMetadata(meta[0], meta[1]);
+        } else {
+            Log.d("GPlayer", "onMetadata NO mOnGPlayerMetadataListener");
+        }
+    }
+
     public int getCurrentPosition() {
         int position = nativeGetPosition();
         Log.d("GPlayer", "nativeGetPosition: " + position);
         return position;
     }
-    
+
     public int getDuration() {
         int duration = nativeGetDuration();
         Log.d("GPlayer", "nativeGetDuration: " + duration);
         return duration;
     }
-    
+
     public void reset() {
         nativeStop();
         nativeSetPosition(0);
     }
-    
+
     public void setVolume(final float left, final float right) {
         Log.d("GPlayer", "setVolume " + left + "," + right);
         nativeSetVolume(left, right);
     }
-    
+
     public void networkChanged() {
         handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
     }
-    
+
     static {
         System.loadLibrary("gstreamer_android");
         System.loadLibrary("gplayer");
@@ -312,5 +328,5 @@ public class GPlayer {
 
     public static GPlayer getInstance() {
         return instance;
-    }    
+    }
 }
