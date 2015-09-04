@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 LOCAL_SHORT_COMMANDS := true
 
 # Edit this line
-GSTREAMER_ROOT_ANDROID := C:\Users\testowekonto\Aupeo-workspace\gstreamer-libs\$(TARGET_ARCH_ABI)\gstreamer-1.0-android-debug-1.4.4
+GSTREAMER_ROOT_ANDROID := C:\Users\testowekonto\Aupeo-workspace\gstreamer-libs\$(TARGET_ARCH_ABI)\gstreamer-1.0-android-1.5.90
 
 
 SHELL := PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin /bin/bash
