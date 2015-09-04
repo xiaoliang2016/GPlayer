@@ -170,7 +170,7 @@ static void gplayer_metadata_update (CustomData *data, const gchar *metadata) {
 void buffer_size(CustomData *data, int size)
 {
     guint maxsizebytes;
-    g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
+    g_object_get(data->source, "buffer-size", &maxsizebytes, NULL);
 
     if (size != maxsizebytes)
     {
@@ -178,7 +178,6 @@ void buffer_size(CustomData *data, int size)
         g_object_set(data->source, "buffer-size", (guint) size, NULL);
         g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
         g_object_set(data->source, "download", (gboolean) TRUE, NULL);
-
         g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
         g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
         g_object_set(data->buffer, "use-rate-estimate", (gboolean) TRUE, NULL);
@@ -271,12 +270,15 @@ static void error_cb (GstBus *bus, GstMessage *msg, CustomData *data) {
     gchar *message_string;
 
     gst_message_parse_error(msg, &err, &debug_info);
-    //gplayer_error(err->code, data);
-
-    GST_DEBUG("error_cb: %s", debug_info);
+    GST_DEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME (msg->src), err->message);
+    GST_DEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
+    if (strcmp(err->message, "Not Found") == 0 || strcmp(err->message, "Internal data stream error.") == 0) {
+        gplayer_error(err->code, data);
+        data->target_state = GST_STATE_NULL;
+        data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+    }
+    g_error_free(err);
     g_free(debug_info);
-    g_clear_error(&err);
-    //data->target_state = GST_STATE_NULL;
     if (data->target_state > GST_STATE_PAUSED)
     {
         data->network_error = TRUE;
@@ -365,7 +367,7 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 
     gst_message_parse_buffering(msg, &data->buffering_level);
     GST_DEBUG("buffering: %d", data->buffering_level);
-    if (data->buffering_level > 50 && data->target_state >= GST_STATE_PLAYING)
+    if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING)
     {
         buffer_size(data, DEFAULT_BUFFER);
         data->target_state = GST_STATE_PLAYING;
@@ -452,6 +454,9 @@ static void pad_added_handler (GstElement *src, GstPad *new_pad, CustomData *dat
   ret = gst_pad_link (new_pad, sink_pad);
   if (GST_PAD_LINK_FAILED (ret)) {
       GST_DEBUG ("  Type is '%s' but link failed.\n", new_pad_type);
+      gplayer_error(-1, data);
+      data->target_state = GST_STATE_NULL;
+      data->is_live = (gst_element_set_state (data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
   } else {
       GST_DEBUG ("  Link succeeded (type '%s').\n", new_pad_type);
   }
@@ -476,26 +481,6 @@ static void build_pipeline(CustomData *data) {
         gst_object_unref (data->pipeline);
         data->pipeline = gst_pipeline_new ("test-pipeline");
     }
-
-/*
-    GstIterator *it = gst_bin_iterate_recurse(GST_BIN(data->pipeline));
-    GValue elem = G_VALUE_INIT;
-    while (gst_iterator_next(it, &elem) == GST_ITERATOR_OK)
-    {
-        GstElement *element = g_value_get_object(&elem);
-        gst_bin_remove(GST_BIN(data->pipeline), element);
-        GST_DEBUG("remove: %s", GST_ELEMENT_NAME(element));
-        gst_object_unref(element);
-        g_value_reset(&elem);
-    }
-
-    it = gst_bin_iterate_recurse(GST_BIN(data->pipeline));
-    while (gst_iterator_next(it, &elem) == GST_ITERATOR_OK)
-    {
-        GstElement *element = g_value_get_object(&elem);
-        GST_DEBUG("element: %s", GST_ELEMENT_NAME(element));
-    }
-*/
 
     /* Build pipeline */
     data->source = gst_element_factory_make ("uridecodebin", "source");
@@ -652,7 +637,6 @@ static void gst_native_play (JNIEnv* env, jobject thiz) {
   GST_DEBUG ("Setting state to PLAYING");
   data->target_state = GST_STATE_PLAYING;
   data->is_live = (gst_element_set_state (data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-
 }
 
 /* Set pipeline to PAUSED state */
@@ -665,16 +649,20 @@ static void gst_native_pause (JNIEnv* env, jobject thiz) {
 }
 
 /* Instruct the pipeline to seek to a different position */
-void gst_native_set_position (JNIEnv* env, jobject thiz, int milliseconds) {
-  CustomData *data = GET_CUSTOM_DATA (env, thiz, custom_data_field_id);
-  if (!data) return;
-  gint64 desired_position = (gint64)(milliseconds * GST_MSECOND);
-  if (data->state >= GST_STATE_PAUSED) {
-    execute_seek(desired_position, data);
-  } else {
-    GST_DEBUG ("Scheduling seek to %" GST_TIME_FORMAT " for later", GST_TIME_ARGS (desired_position));
-    data->desired_position = desired_position;
-  }
+void gst_native_set_position(JNIEnv* env, jobject thiz, int milliseconds)
+{
+    CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+    if (!data || !data->allow_seek || milliseconds == 0)
+        return;
+    gint64 desired_position = (gint64) (milliseconds * GST_MSECOND);
+    if (data->state >= GST_STATE_PAUSED)
+    {
+        execute_seek(desired_position, data);
+    } else
+    {
+        GST_DEBUG("Scheduling seek to %" GST_TIME_FORMAT " for later", GST_TIME_ARGS (desired_position));
+        data->desired_position = desired_position;
+    }
 }
 
 /* Static class initializer: retrieve method and field IDs */

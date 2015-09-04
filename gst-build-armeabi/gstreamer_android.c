@@ -3,6 +3,8 @@
 #include <gio/gio.h>
 #include <android/log.h>
 
+static jobject _context = NULL;
+static jobject _class_loader = NULL;
 static GstClockTime _priv_gst_info_start_time;
 
 #define GST_G_IO_MODULE_DECLARE(name) \
@@ -64,6 +66,7 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(frei0r);
   GST_PLUGIN_STATIC_DECLARE(gaudieffects);
   GST_PLUGIN_STATIC_DECLARE(geometrictransform);
+  GST_PLUGIN_STATIC_DECLARE(inter);
   GST_PLUGIN_STATIC_DECLARE(interlace);
   GST_PLUGIN_STATIC_DECLARE(ivtc);
   GST_PLUGIN_STATIC_DECLARE(liveadder);
@@ -83,6 +86,7 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(udp);
   GST_PLUGIN_STATIC_DECLARE(dataurisrc);
   GST_PLUGIN_STATIC_DECLARE(sdp);
+  GST_PLUGIN_STATIC_DECLARE(srtp);
   GST_PLUGIN_STATIC_DECLARE(opensles);
   GST_PLUGIN_STATIC_DECLARE(opengl);
   GST_PLUGIN_STATIC_DECLARE(subparse);
@@ -124,6 +128,7 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(kate);
   GST_PLUGIN_STATIC_DECLARE(midi);
   GST_PLUGIN_STATIC_DECLARE(mxf);
+  GST_PLUGIN_STATIC_DECLARE(openh264);
   GST_PLUGIN_STATIC_DECLARE(opus);
   GST_PLUGIN_STATIC_DECLARE(pcapparse);
   GST_PLUGIN_STATIC_DECLARE(pnm);
@@ -137,6 +142,8 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(jpegformat);
   GST_PLUGIN_STATIC_DECLARE(gdp);
   GST_PLUGIN_STATIC_DECLARE(rsvg);
+  GST_PLUGIN_STATIC_DECLARE(openjpeg);
+  GST_PLUGIN_STATIC_DECLARE(androidmedia);
   GST_PLUGIN_STATIC_DECLARE(asfmux);
   GST_PLUGIN_STATIC_DECLARE(dtsdec);
   GST_PLUGIN_STATIC_DECLARE(faad);
@@ -156,6 +163,7 @@ G_PASTE(g_io_module_, G_PASTE(name, _load_static)) ()
   GST_PLUGIN_STATIC_DECLARE(xingmux);
   GST_PLUGIN_STATIC_DECLARE(realmedia);
   GST_PLUGIN_STATIC_DECLARE(x264);
+  GST_PLUGIN_STATIC_DECLARE(lame);
   GST_PLUGIN_STATIC_DECLARE(libav);
   GST_PLUGIN_STATIC_DECLARE(mms);
   GST_PLUGIN_STATIC_DECLARE(rtmp);
@@ -221,6 +229,7 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(frei0r);
   GST_PLUGIN_STATIC_REGISTER(gaudieffects);
   GST_PLUGIN_STATIC_REGISTER(geometrictransform);
+  GST_PLUGIN_STATIC_REGISTER(inter);
   GST_PLUGIN_STATIC_REGISTER(interlace);
   GST_PLUGIN_STATIC_REGISTER(ivtc);
   GST_PLUGIN_STATIC_REGISTER(liveadder);
@@ -240,6 +249,7 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(udp);
   GST_PLUGIN_STATIC_REGISTER(dataurisrc);
   GST_PLUGIN_STATIC_REGISTER(sdp);
+  GST_PLUGIN_STATIC_REGISTER(srtp);
   GST_PLUGIN_STATIC_REGISTER(opensles);
   GST_PLUGIN_STATIC_REGISTER(opengl);
   GST_PLUGIN_STATIC_REGISTER(subparse);
@@ -281,6 +291,7 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(kate);
   GST_PLUGIN_STATIC_REGISTER(midi);
   GST_PLUGIN_STATIC_REGISTER(mxf);
+  GST_PLUGIN_STATIC_REGISTER(openh264);
   GST_PLUGIN_STATIC_REGISTER(opus);
   GST_PLUGIN_STATIC_REGISTER(pcapparse);
   GST_PLUGIN_STATIC_REGISTER(pnm);
@@ -294,6 +305,8 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(jpegformat);
   GST_PLUGIN_STATIC_REGISTER(gdp);
   GST_PLUGIN_STATIC_REGISTER(rsvg);
+  GST_PLUGIN_STATIC_REGISTER(openjpeg);
+  GST_PLUGIN_STATIC_REGISTER(androidmedia);
   GST_PLUGIN_STATIC_REGISTER(asfmux);
   GST_PLUGIN_STATIC_REGISTER(dtsdec);
   GST_PLUGIN_STATIC_REGISTER(faad);
@@ -313,6 +326,7 @@ gst_android_register_static_plugins (void)
   GST_PLUGIN_STATIC_REGISTER(xingmux);
   GST_PLUGIN_STATIC_REGISTER(realmedia);
   GST_PLUGIN_STATIC_REGISTER(x264);
+  GST_PLUGIN_STATIC_REGISTER(lame);
   GST_PLUGIN_STATIC_REGISTER(libav);
   GST_PLUGIN_STATIC_REGISTER(mms);
   GST_PLUGIN_STATIC_REGISTER(rtmp);
@@ -327,13 +341,13 @@ gst_android_load_gio_modules (void)
 
 }
 
-void
+static void
 glib_print_handler (const gchar * string)
 {
   __android_log_print (ANDROID_LOG_INFO, "GLib+stdout", "%s", string);
 }
 
-void
+static void
 glib_printerr_handler (const gchar * string)
 {
   __android_log_print (ANDROID_LOG_ERROR, "GLib+stderr", "%s", string);
@@ -403,7 +417,7 @@ escape_string (GString * string)
   }
 }
 
-void
+static void
 glib_log_handler (const gchar * log_domain, GLogLevelFlags log_level,
     const gchar * message, gpointer user_data)
 {
@@ -471,7 +485,7 @@ emit:
   g_free (tag);
 }
 
-void
+static void
 gst_debug_logcat (GstDebugCategory * category, GstDebugLevel level,
     const gchar * file, const gchar * function, gint line,
     GObject * object, GstDebugMessage * message, gpointer unused)
@@ -655,13 +669,71 @@ get_application_dirs (JNIEnv * env, jobject context, gchar ** cache_dir,
   return TRUE;
 }
 
-static void
-gst_android_init (JNIEnv * env, jclass klass, jobject context)
+jobject
+gst_android_get_application_context ()
+{
+  return _context;
+}
+
+jobject
+gst_android_get_application_class_loader ()
+{
+  return _class_loader;
+}
+
+static gboolean
+init (JNIEnv *env, jobject context)
+{
+  jclass context_cls = NULL;
+  jmethodID get_class_loader_id = 0;
+
+  jobject class_loader = NULL;
+
+  context_cls = (*env)->GetObjectClass (env, context);
+  if (!context_cls) {
+    return FALSE;
+  }
+
+  get_class_loader_id = (*env)->GetMethodID (env, context_cls,
+      "getClassLoader", "()Ljava/lang/ClassLoader;");
+  if ((*env)->ExceptionCheck (env)) {
+    (*env)->ExceptionDescribe (env);
+    (*env)->ExceptionClear (env);
+    return FALSE;
+  }
+
+  class_loader = (*env)->CallObjectMethod (env, context, get_class_loader_id);
+  if ((*env)->ExceptionCheck (env)) {
+    (*env)->ExceptionDescribe (env);
+    (*env)->ExceptionClear (env);
+    return FALSE;
+  }
+
+  if (_context) {
+    (*env)->DeleteGlobalRef (env, _context);
+  }
+  _context = (*env)->NewGlobalRef (env, context);
+
+  if (_class_loader) {
+    (*env)->DeleteGlobalRef (env, _class_loader);
+  }
+  _class_loader = (*env)->NewGlobalRef (env, class_loader);
+
+  return TRUE;
+}
+
+void
+gst_android_init (JNIEnv * env, jobject context)
 {
   gchar *cache_dir;
   gchar *files_dir;
   gchar *registry;
   GError *error = NULL;
+
+  if (!init (env, context)) {
+    __android_log_print (ANDROID_LOG_INFO, "GStreamer",
+        "GStreamer failed to initialize");
+  }
 
   if (gst_is_initialized ()) {
     __android_log_print (ANDROID_LOG_INFO, "GStreamer",
@@ -683,7 +755,7 @@ gst_android_init (JNIEnv * env, jclass klass, jobject context)
     registry = g_build_filename (cache_dir, "registry.bin", NULL);
     g_setenv ("GST_REGISTRY", registry, TRUE);
     g_free (registry);
-    g_setenv ("GST_REUSE_PLUGIN_SCANNER", "no", TRUE);
+    g_setenv ("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no", TRUE);
     /* TODO: Should probably also set GST_PLUGIN_SCANNER and GST_PLUGIN_SYSTEM_PATH */
   }
   if (files_dir) {
@@ -725,7 +797,7 @@ gst_android_init (JNIEnv * env, jclass klass, jobject context)
     gchar *message = g_strdup_printf ("GStreamer initialization failed: %s",
         error && error->message ? error->message : "(no message)");
     jclass exception_class = (*env)->FindClass (env, "java/lang/Exception");
-    __android_log_print (ANDROID_LOG_ERROR, "GStreamer", message);
+    __android_log_print (ANDROID_LOG_ERROR, "GStreamer", "%s", message);
     (*env)->ThrowNew (env, exception_class, message);
     g_free (message);
     return;
@@ -736,14 +808,21 @@ gst_android_init (JNIEnv * env, jclass klass, jobject context)
       "GStreamer initialization complete");
 }
 
+static void
+gst_android_init_jni (JNIEnv * env, jobject gstreamer, jobject context)
+{
+  gst_android_init (env, context);
+}
+
 static JNINativeMethod native_methods[] = {
-  {"nativeInit", "(Landroid/content/Context;)V", (void *) gst_android_init}
+  {"nativeInit", "(Landroid/content/Context;)V", (void *) gst_android_init_jni}
 };
 
 jint
-JNI_OnLoad (JavaVM * vm, void *reserved)
+JNI_OnLoad (JavaVM * vm, void * reserved)
 {
   JNIEnv *env = NULL;
+  GModule *module;
 
   if ((*vm)->GetEnv (vm, (void **) &env, JNI_VERSION_1_4) != JNI_OK) {
     __android_log_print (ANDROID_LOG_ERROR, "GStreamer",
@@ -763,5 +842,39 @@ JNI_OnLoad (JavaVM * vm, void *reserved)
     return 0;
   }
 
+  /* Tell the androidmedia plugin about the Java VM if we can */
+  module = g_module_open (NULL, G_MODULE_BIND_LOCAL);
+  if (module) {
+    void (*set_java_vm) (JavaVM *) = NULL;
+
+    if (g_module_symbol (module, "gst_amc_jni_set_java_vm",
+          (gpointer *) & set_java_vm) && set_java_vm) {
+      set_java_vm (vm);
+    }
+    g_module_close (module);
+  }
+
   return JNI_VERSION_1_4;
+}
+
+void
+JNI_OnUnload (JavaVM * vm, void * reversed)
+{
+  JNIEnv *env = NULL;
+
+  if ((*vm)->GetEnv (vm, (void **) &env, JNI_VERSION_1_4) != JNI_OK) {
+    __android_log_print (ANDROID_LOG_ERROR, "GStreamer",
+        "Could not retrieve JNIEnv");
+    return;
+  }
+
+  if (_context) {
+    (*env)->DeleteGlobalRef (env, _context);
+    _context = NULL;
+  }
+
+  if (_class_loader) {
+    (*env)->DeleteGlobalRef (env, _class_loader);
+    _class_loader = NULL;
+  }
 }
