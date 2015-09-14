@@ -350,7 +350,7 @@ void build_pipeline(CustomData *data) {
 }
 
 /* Main method for the native code. This is executed on its own thread. */
-void *app_function(void *userdata) {
+static void *app_function(void *userdata) {
 	CustomData *data = (CustomData *) userdata;
 
 	GST_DEBUG("Creating pipeline in CustomData at %p", data);
@@ -409,3 +409,34 @@ void set_notifyfunction(CustomData *data) {
 	}
 }
 
+
+/* Instruct the native code to create its internal data structure, pipeline and thread */
+void gst_native_init(JNIEnv* env, jobject thiz) {
+	CustomData *data = g_new0(CustomData, 1);
+	data->last_seek_time = GST_CLOCK_TIME_NONE;
+	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, data);
+	GST_DEBUG_CATEGORY_INIT(debug_category, "gplayer", 0, "Aupeo GStreamer Player");
+	gst_debug_set_threshold_for_name("gplayer", GST_LEVEL_DEBUG);
+	GST_DEBUG("Created CustomData at %p", data);
+	data->app = (*env)->NewGlobalRef(env, thiz);
+	GST_DEBUG("Created GlobalRef for app object at %p", data->app);
+	pthread_create(&gst_app_thread, NULL, &app_function, data);
+}
+
+
+/* Quit the main loop, remove the native thread and free resources */
+void gst_native_finalize(JNIEnv* env, jobject thiz) {
+	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+	if (!data)
+		return;
+	GST_DEBUG("Quitting main loop...");
+	g_main_loop_quit(data->main_loop);
+	GST_DEBUG("Waiting for thread to finish...");
+	pthread_join(gst_app_thread, NULL);
+	GST_DEBUG("Deleting GlobalRef for app object at %p", data->app);
+	(*env)->DeleteGlobalRef(env, data->app);
+	GST_DEBUG("Freeing CustomData at %p", data);
+	g_free(data);
+	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, NULL);
+	GST_DEBUG("Done finalizing");
+}

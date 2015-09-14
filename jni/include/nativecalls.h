@@ -7,8 +7,8 @@
 
 // java calls
 static void gst_native_class_init(JNIEnv* env, jclass klass);
-static void gst_native_finalize(JNIEnv* env, jobject thiz);
-static void gst_native_init(JNIEnv* env, jobject thiz);
+extern void gst_native_finalize(JNIEnv* env, jobject thiz);
+extern void gst_native_init(JNIEnv* env, jobject thiz);
 static void gst_native_pause(JNIEnv* env, jobject thiz);
 static void gst_native_play(JNIEnv* env, jobject thiz);
 static void gst_native_pause(JNIEnv* env, jobject thiz);
@@ -24,7 +24,6 @@ static int gst_native_get_duration(JNIEnv* env, jobject thiz);
 static int gst_native_get_position(JNIEnv* env, jobject thiz);
 
 void set_notifyfunction(CustomData *data);
-void *app_function(void *userdata);
 void buffer_size(CustomData *data, int size);
 void build_pipeline(CustomData *data);
 void check_initialization_complete(CustomData *data);

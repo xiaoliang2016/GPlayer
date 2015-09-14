@@ -12,12 +12,12 @@
 #include "customdata.h"
 
 #include "java_callbacks.h"
-#include "nativecalls.h"
 #include "gst_callbacks.h"
 
 #define SMALL_BUFFER 370000
 #define DEFAULT_BUFFER 2097152
 
+static pthread_t gst_app_thread;
 
 /* Do not allow seeks to be performed closer than this distance. It is visually useless, and will probably
  * confuse some demuxers. */

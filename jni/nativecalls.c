@@ -12,7 +12,6 @@
 #include "include/customdata.h"
 #include "include/nativecalls.h"
 
-static pthread_t gst_app_thread;
 static pthread_key_t current_jni_env;
 static JavaVM *java_vm;
 
@@ -111,36 +110,6 @@ static int gst_native_get_duration(JNIEnv* env, jobject thiz) {
 	}
 
 	return (int) (duration / GST_MSECOND);
-}
-
-/* Instruct the native code to create its internal data structure, pipeline and thread */
-static void gst_native_init(JNIEnv* env, jobject thiz) {
-	CustomData *data = g_new0(CustomData, 1);
-	data->last_seek_time = GST_CLOCK_TIME_NONE;
-	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, data);
-	GST_DEBUG_CATEGORY_INIT(debug_category, "gplayer", 0, "Aupeo GStreamer Player");
-	gst_debug_set_threshold_for_name("gplayer", GST_LEVEL_DEBUG);
-	GST_DEBUG("Created CustomData at %p", data);
-	data->app = (*env)->NewGlobalRef(env, thiz);
-	GST_DEBUG("Created GlobalRef for app object at %p", data->app);
-	pthread_create(&gst_app_thread, NULL, &app_function, data);
-}
-
-/* Quit the main loop, remove the native thread and free resources */
-static void gst_native_finalize(JNIEnv* env, jobject thiz) {
-	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
-	if (!data)
-		return;
-	GST_DEBUG("Quitting main loop...");
-	g_main_loop_quit(data->main_loop);
-	GST_DEBUG("Waiting for thread to finish...");
-	pthread_join(gst_app_thread, NULL);
-	GST_DEBUG("Deleting GlobalRef for app object at %p", data->app);
-	(*env)->DeleteGlobalRef(env, data->app);
-	GST_DEBUG("Freeing CustomData at %p", data);
-	g_free(data);
-	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, NULL);
-	GST_DEBUG("Done finalizing");
 }
 
 static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean seek) {
