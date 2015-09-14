@@ -9,7 +9,6 @@
 #include <jni.h>
 #include "include/gplayer.h"
 
-
 void buffer_size(CustomData *data, int size) {
 	guint maxsizebytes;
 	g_object_get(data->source, "buffer-size", &maxsizebytes, NULL);
@@ -20,10 +19,9 @@ void buffer_size(CustomData *data, int size) {
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
-		g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
+		g_object_set(data->buffer, "low-percent", (gint) 95, NULL);
 		g_object_set(data->buffer, "use-rate-estimate", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
-		g_object_set(data->buffer, "max-size-time", (guint64) 20000000000, NULL);
 	}
 }
 
@@ -39,12 +37,14 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 
 	/* If we didn't know it yet, query the stream duration */
 	if (!GST_CLOCK_TIME_IS_VALID(data->duration)) {
-		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration)) {
+		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
+				&data->duration)) {
 			data->duration = 0;
 		}
 	}
 
-	if (!gst_element_query_position(data->pipeline, GST_FORMAT_TIME, &position)) {
+	if (!gst_element_query_position(data->pipeline, GST_FORMAT_TIME,
+			&position)) {
 		position = 0;
 	}
 
@@ -54,19 +54,20 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 		guint currentlevelbytes;
 		g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
 		g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes,
-		NULL);
-		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration)) {
+				NULL);
+		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
+				&data->duration)) {
 			data->duration = 0;
 		}
 
-		GST_DEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld", maxsizebytes, currentlevelbytes,
-				data->duration);
+		GST_DEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld",
+				maxsizebytes, currentlevelbytes, data->duration);
 
 		gplayer_notify_time(data, (int) (position / GST_MSECOND));
 		if (data->network_error == TRUE) {
 			GST_DEBUG("Retrying setting state to PLAYING");
-			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING)
-					== GST_STATE_CHANGE_NO_PREROLL);
+			data->is_live = (gst_element_set_state(data->pipeline,
+					GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 		}
 	}
 	return TRUE;
@@ -99,14 +100,15 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	gchar *message_string;
 
 	gst_message_parse_error(msg, &err, &debug_info);
-	GST_DEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
+	GST_DEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src),
+			err->message);
 	GST_DEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
 	if (strcmp(err->message, "Not Found") == 0
 			|| strcmp(err->message, "Internal data stream error.") == 0) {
 		gplayer_error(err->code, data);
 		data->target_state = GST_STATE_NULL;
-		data->is_live = (gst_element_set_state(data->pipeline, data->target_state)
-				== GST_STATE_CHANGE_NO_PREROLL);
+		data->is_live = (gst_element_set_state(data->pipeline,
+				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 	g_error_free(err);
 	g_free(debug_info);
@@ -135,7 +137,8 @@ void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
 		} else if (G_VALUE_HOLDS_DOUBLE(val)) {
 			GST_DEBUG("\t%20s : %g\n", tag, g_value_get_double(val));
 		} else if (G_VALUE_HOLDS_BOOLEAN(val)) {
-			GST_DEBUG("\t%20s : %s\n", tag, (g_value_get_boolean(val)) ? "true" : "false");
+			GST_DEBUG("\t%20s : %s\n", tag,
+					(g_value_get_boolean(val)) ? "true" : "false");
 		} else if (GST_VALUE_HOLDS_BUFFER(val)) {
 			GstBuffer *buf = gst_value_get_buffer(val);
 			guint buffer_size = gst_buffer_get_size(buf);
@@ -148,7 +151,8 @@ void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
 			GST_DEBUG("\t%20s : %s\n", tag, dt_str);
 			g_free(dt_str);
 		} else {
-			GST_DEBUG("\t%20s : tag of type '%s'\n", tag, G_VALUE_TYPE_NAME(val));
+			GST_DEBUG("\t%20s : tag of type '%s'\n", tag,
+					G_VALUE_TYPE_NAME(val));
 		}
 	}
 }
@@ -193,10 +197,8 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
 		buffer_size(data, DEFAULT_BUFFER);
 		data->target_state = GST_STATE_PLAYING;
-		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING)
-				== GST_STATE_CHANGE_NO_PREROLL);
-	} else {
-		buffer_size(data, SMALL_BUFFER);
+		data->is_live = (gst_element_set_state(data->pipeline,
+				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 }
 
@@ -205,17 +207,18 @@ static void clock_lost_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	if (data->target_state >= GST_STATE_PLAYING) {
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED)
 				== GST_STATE_CHANGE_NO_PREROLL);
-		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING)
-				== GST_STATE_CHANGE_NO_PREROLL);
+		data->is_live = (gst_element_set_state(data->pipeline,
+				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 }
 
 /* Notify UI about pipeline state changes */
 static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	GstState old_state, new_state, pending_state;
-	gst_message_parse_state_changed(msg, &old_state, &new_state, &pending_state);
+	gst_message_parse_state_changed(msg, &old_state, &new_state,
+			&pending_state);
 	/* Only pay attention to messages coming from the pipeline, not its children */
-	if (GST_MESSAGE_SRC (msg) == GST_OBJECT(data->pipeline)) {
+	if (GST_MESSAGE_SRC(msg) == GST_OBJECT(data->pipeline)) {
 		data->state = new_state;
 
 		/* The Ready to Paused state change is particularly interesting: */
@@ -236,21 +239,25 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 void check_initialization_complete(CustomData *data) {
 	JNIEnv *env = get_jni_env();
 	if (!data->initialized && data->main_loop) {
-		GST_DEBUG("Initialization complete, notifying application. main_loop:%p", data->main_loop);
+		GST_DEBUG(
+				"Initialization complete, notifying application. main_loop:%p",
+				data->main_loop);
 		gplayer_notify_init_complete(data);
 		data->initialized = TRUE;
 	}
 }
 
 /* This function will be called by the pad-added signal */
-static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data) {
+static void pad_added_handler(GstElement *src, GstPad *new_pad,
+		CustomData *data) {
 	GstPad *sink_pad = gst_element_get_static_pad(data->buffer, "sink");
 	GstPadLinkReturn ret;
 	GstCaps *new_pad_caps = NULL;
 	GstStructure *new_pad_struct = NULL;
 	const gchar *new_pad_type = NULL;
 
-	GST_DEBUG("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad), GST_ELEMENT_NAME(src));
+	GST_DEBUG("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad),
+			GST_ELEMENT_NAME(src));
 
 	/* If our converter is already linked, we have nothing to do here */
 	if (gst_pad_is_linked(sink_pad)) {
@@ -263,7 +270,8 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data
 	new_pad_struct = gst_caps_get_structure(new_pad_caps, 0);
 	new_pad_type = gst_structure_get_name(new_pad_struct);
 	if (!g_str_has_prefix(new_pad_type, "audio/x-raw")) {
-		GST_DEBUG("  It has type '%s' which is not raw audio. Ignoring.\n", new_pad_type);
+		GST_DEBUG("  It has type '%s' which is not raw audio. Ignoring.\n",
+				new_pad_type);
 		goto exit;
 	}
 
@@ -276,8 +284,8 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data
 		GST_DEBUG("  Type is '%s' but link failed.\n", new_pad_type);
 		gplayer_error(-1, data);
 		data->target_state = GST_STATE_NULL;
-		data->is_live = (gst_element_set_state(data->pipeline, data->target_state)
-				== GST_STATE_CHANGE_NO_PREROLL);
+		data->is_live = (gst_element_set_state(data->pipeline,
+				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	} else {
 		GST_DEBUG("  Link succeeded (type '%s').\n", new_pad_type);
 	}
@@ -297,11 +305,9 @@ void build_pipeline(CustomData *data) {
 	GError *error = NULL;
 	guint flags;
 
-	if (data->initialized == TRUE) {
-		gst_element_set_state(data->pipeline, GST_STATE_NULL);
-		gst_object_unref(data->pipeline);
-		data->pipeline = gst_pipeline_new("test-pipeline");
-	}
+	gst_element_set_state(data->pipeline, GST_STATE_NULL);
+	gst_object_unref(data->pipeline);
+	data->pipeline = gst_pipeline_new("test-pipeline");
 
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
@@ -309,14 +315,15 @@ void build_pipeline(CustomData *data) {
 	data->convert = gst_element_factory_make("audioconvert", "convert");
 	data->sink = gst_element_factory_make("autoaudiosink", "sink");
 
-	if (!data->pipeline || !data->source || !data->convert || !data->buffer || !data->sink) {
+	if (!data->pipeline || !data->source || !data->convert || !data->buffer
+			|| !data->sink) {
 		gplayer_error(-1, data);
 		GST_DEBUG("Not all elements could be created.\n");
 		return;
 	}
 
-	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->convert, data->buffer, data->sink,
-			NULL);
+	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->convert,
+			data->buffer, data->sink, NULL);
 	if (!gst_element_link(data->buffer, data->convert)
 			|| !gst_element_link(data->convert, data->sink)) {
 		GST_DEBUG("Elements could not be linked.\n");
@@ -328,23 +335,30 @@ void build_pipeline(CustomData *data) {
 	flags &= ~GST_PLAY_FLAG_TEXT;
 	g_object_set(data->pipeline, "flags", flags, NULL);
 
-	g_signal_connect(data->source, "pad-added", (GCallback )pad_added_handler, data);
+	g_signal_connect(data->source, "pad-added", (GCallback) pad_added_handler,
+			data);
 
 	data->target_state = GST_STATE_READY;
 	gst_element_set_state(data->pipeline, GST_STATE_READY);
 
 	bus = gst_element_get_bus(data->pipeline);
 	bus_source = gst_bus_create_watch(bus);
-	g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
+	g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func,
+			NULL, NULL);
 	g_source_attach(bus_source, data->context);
 	g_source_unref(bus_source);
-	g_signal_connect(G_OBJECT (bus), "message::error", (GCallback )error_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::eos", (GCallback )eos_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::tag", (GCallback )tag_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::state-changed", (GCallback )state_changed_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::duration", (GCallback )duration_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::buffering", (GCallback )buffering_cb, data);
-	g_signal_connect(G_OBJECT (bus), "message::clock-lost", (GCallback )clock_lost_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::error", (GCallback) error_cb,
+			data);
+	g_signal_connect(G_OBJECT(bus), "message::eos", (GCallback) eos_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::tag", (GCallback) tag_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::state-changed",
+			(GCallback) state_changed_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::duration",
+			(GCallback) duration_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::buffering",
+			(GCallback) buffering_cb, data);
+	g_signal_connect(G_OBJECT(bus), "message::clock-lost",
+			(GCallback) clock_lost_cb, data);
 	gst_object_unref(bus);
 
 }
@@ -386,7 +400,6 @@ static void *app_function(void *userdata) {
  * Java Bindings
  */
 
-
 void set_notifyfunction(CustomData *data) {
 	GstBus *bus;
 	GSource *bus_source;
@@ -394,7 +407,8 @@ void set_notifyfunction(CustomData *data) {
 	if (data->notify_time > 0) {
 		bus = gst_element_get_bus(data->pipeline);
 		bus_source = gst_bus_create_watch(bus);
-		g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
+		g_source_set_callback(bus_source,
+				(GSourceFunc) gst_bus_async_signal_func, NULL, NULL);
 		g_source_attach(bus_source, data->context);
 		g_source_unref(bus_source);
 
@@ -403,26 +417,26 @@ void set_notifyfunction(CustomData *data) {
 		}
 		/* Register a function that GLib will call 4 times per second */
 		data->timeout_source = g_timeout_source_new(data->notify_time);
-		g_source_set_callback(data->timeout_source, (GSourceFunc) gst_notify_time_cb, data, NULL);
+		g_source_set_callback(data->timeout_source,
+				(GSourceFunc) gst_notify_time_cb, data, NULL);
 		g_source_attach(data->timeout_source, data->context);
 		g_source_unref(data->timeout_source);
 	}
 }
-
 
 /* Instruct the native code to create its internal data structure, pipeline and thread */
 void gst_native_init(JNIEnv* env, jobject thiz) {
 	CustomData *data = g_new0(CustomData, 1);
 	data->last_seek_time = GST_CLOCK_TIME_NONE;
 	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, data);
-	GST_DEBUG_CATEGORY_INIT(debug_category, "gplayer", 0, "Aupeo GStreamer Player");
+	GST_DEBUG_CATEGORY_INIT(debug_category, "gplayer", 0,
+			"Aupeo GStreamer Player");
 	gst_debug_set_threshold_for_name("gplayer", GST_LEVEL_DEBUG);
 	GST_DEBUG("Created CustomData at %p", data);
 	data->app = (*env)->NewGlobalRef(env, thiz);
 	GST_DEBUG("Created GlobalRef for app object at %p", data->app);
 	pthread_create(&gst_app_thread, NULL, &app_function, data);
 }
-
 
 /* Quit the main loop, remove the native thread and free resources */
 void gst_native_finalize(JNIEnv* env, jobject thiz) {
