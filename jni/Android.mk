@@ -2,7 +2,7 @@ LOCAL_PATH := $(call my-dir)
 LOCAL_SHORT_COMMANDS := true
 
 # Edit this line
-GSTREAMER_ROOT_ANDROID := C:\Users\testowekonto\Aupeo-workspace\gstreamer-libs\$(TARGET_ARCH_ABI)\gstreamer-1.0-android-1.5.90
+GSTREAMER_ROOT_ANDROID := C:\repos\Aupeo-workspace\gstreamer-libs\$(TARGET_ARCH_ABI)\gstreamer-1.0-android-1.5.90
 
 
 SHELL := PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin /bin/bash
@@ -10,7 +10,7 @@ SHELL := PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin /bin/bash
 include $(CLEAR_VARS)
 
 LOCAL_MODULE    := gplayer
-LOCAL_SRC_FILES := gplayer.c
+LOCAL_SRC_FILES := gplayer.c java_callbacks.c nativecalls.c
 LOCAL_SHARED_LIBRARIES := gstreamer_android
 LOCAL_LDLIBS := -llog -landroid
 include $(BUILD_SHARED_LIBRARY)

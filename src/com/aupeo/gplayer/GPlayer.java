@@ -15,7 +15,6 @@ import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 
-@SuppressWarnings("deprecation")
 public class GPlayer {
 
     public interface OnTimeListener {
@@ -166,7 +165,6 @@ public class GPlayer {
                 nativeSetBufferSize(64000);
                 new Thread(new Runnable() {
 
-                    @SuppressWarnings("deprecation")
                     @Override
                     public void run() {
                         Log.d("GPlayer", "poke google to force network init!");
