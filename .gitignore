@@ -4,6 +4,8 @@
 .gradle
 bin/
 tmp/
+*.[so]
+*.[o]
 *.tmp
 *.bak
 *.swp
@@ -21,7 +23,6 @@ local.properties
 !/bin/*.jar
 /obj/
 /doc/
-
 src/org/freedesktop/*
 gen/com/aupeo/gplayer/BuildConfig.java
 gen/com/aupeo/gplayer/R.java

@@ -5,46 +5,57 @@
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="com.android.toolchain.gcc.1221046551" moduleId="org.eclipse.cdt.core.settings" name="Default">
 				<externalSettings/>
 				<extensions>
-					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
 				<configuration artifactName="${ProjName}" buildProperties="" description="" id="com.android.toolchain.gcc.1221046551" name="Default" parent="org.eclipse.cdt.build.core.emptycfg">
 					<folderInfo id="com.android.toolchain.gcc.1221046551.452269941" name="/" resourcePath="">
-						<toolChain id="com.android.toolchain.gcc.230122279" name="com.android.toolchain.gcc" superClass="com.android.toolchain.gcc">
-							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="com.android.targetPlatform.789508074" name="Android Platform" osList="all" superClass="com.android.targetPlatform"/>
-							<builder arguments="V=1" command="ndk-build.cmd" id="com.android.builder.851362348" keepEnvironmentInBuildfile="false" managedBuildOn="false" superClass="com.android.builder">
-								<outputEntries>
-									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="obj"/>
-									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="libs"/>
-								</outputEntries>
-							</builder>
-							<tool id="cdt.managedbuild.tool.gnu.archiver.base.650132982" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
-							<tool id="com.android.tool.compiler.g++.1340980244" name="Android G++" superClass="com.android.tool.compiler.g++">
-								<inputType id="com.android.tool.compiler.g++.input.328933479" superClass="com.android.tool.compiler.g++.input"/>
-							</tool>
-							<tool id="com.android.tool.compiler.c.447942725" name="Android GCC" superClass="com.android.tool.compiler.c">
-								<inputType id="com.android.tool.compiler.c.input.2078387601" superClass="com.android.tool.compiler.c.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.base.539933428" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.base.234599853" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.base">
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.2107946975" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">
+						<toolChain id="cdt.managedbuild.toolchain.gnu.base.2105364001" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.base" unusedChildren="cdt.managedbuild.tool.gnu.cpp.compiler.base;cdt.managedbuild.tool.gnu.cpp.linker.base">
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.target.gnu.platform.base.110315918" name="Debug Platform" osList="linux,hpux,aix,qnx" superClass="cdt.managedbuild.target.gnu.platform.base"/>
+							<builder arguments="V=1" command="ndk-build.cmd" id="com.android.builder.940142790" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Android Builder" superClass="com.android.builder"/>
+							<tool id="cdt.managedbuild.tool.gnu.archiver.base.1915912515" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
+							<tool id="cdt.managedbuild.tool.gnu.c.linker.base.1524937989" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.base">
+								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.967753371" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
 								</inputType>
 							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.assembler.base.713861021" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.base">
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1840884923" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+							<tool id="cdt.managedbuild.tool.gnu.assembler.base.382387870" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.base">
+								<option id="gnu.both.asm.option.include.paths.2126445748" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths"/>
+								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.2037415275" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
+							</tool>
+							<tool id="cdt.managedbuild.tool.gnu.c.compiler.base.1703059009" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.base">
+								<option id="gnu.c.compiler.option.include.paths.1398674853" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\GPlayer&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\GPlayer\jni\include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0\glib&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0\&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0\gst&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\glib-2.0\include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\include\c++\4.9&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\include\c++\4.9\arm-linux-androideabi&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include-fixed&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\include\c++\4.9\backward&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\sysroot\usr\include&quot;"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.297137857" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="jni"/>
+						<entry excluding="gst-build-armeabi|jni|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="gst-build-armeabi"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="jni"/>
+						<entry flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name="src"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -55,6 +66,12 @@
 		<project id="GPlayer.null.1321051094" name="GPlayer"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Default">
+			<resource resourceType="PROJECT" workspacePath="/GPlayer"/>
+		</configuration>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;com.android.tool.compiler.c.447942725;com.android.tool.compiler.c.input.2078387601">
@@ -63,11 +80,20 @@
 		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;com.android.tool.compiler.g++.1340980244;com.android.tool.compiler.g++.input.328933479">
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile"/>
 		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;com.android.gcc.compiler.396555496;com.android.gcc.inputType.88282870">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="com.android.AndroidPerProjectProfile"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;cdt.managedbuild.tool.gnu.c.compiler.base.1703059009;cdt.managedbuild.tool.gnu.c.compiler.input.297137857">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;cdt.managedbuild.tool.gnu.c.compiler.base.582343529;cdt.managedbuild.tool.gnu.c.compiler.input.91368636">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;com.android.tool.compiler.c.1706536495;com.android.tool.compiler.c.input.108843600">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile"/>
+		</scannerConfigBuildInfo>
+		<scannerConfigBuildInfo instanceId="com.android.toolchain.gcc.1221046551;com.android.toolchain.gcc.1221046551.452269941;com.android.tool.compiler.g++.220200001;com.android.tool.compiler.g++.input.1446816816">
+			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile"/>
+		</scannerConfigBuildInfo>
 	</storageModule>
-	<storageModule moduleId="refreshScope" versionNumber="2">
-		<configuration configurationName="Default">
-			<resource resourceType="PROJECT" workspacePath="/GPlayer"/>
-		</configuration>
-	</storageModule>
-	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>
