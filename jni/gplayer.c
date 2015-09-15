@@ -5,7 +5,6 @@
  *      Author: Krzysztof Gawrys
  */
 
-#include <android/log.h>
 #include <jni.h>
 #include "include/gplayer.h"
 
@@ -14,7 +13,7 @@ void buffer_size(CustomData *data, int size) {
 	g_object_get(data->source, "buffer-size", &maxsizebytes, NULL);
 
 	if (size != maxsizebytes) {
-		GST_DEBUG("Set buffer size to %i", size);
+		GPlayerDEBUG("Set buffer size to %i", size);
 		g_object_set(data->source, "buffer-size", (guint) size, NULL);
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
@@ -60,12 +59,12 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 			data->duration = 0;
 		}
 
-		GST_DEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld",
+		GPlayerDEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld",
 				maxsizebytes, currentlevelbytes, data->duration);
 
 		gplayer_notify_time(data, (int) (position / GST_MSECOND));
 		if (data->network_error == TRUE) {
-			GST_DEBUG("Retrying setting state to PLAYING");
+			GPlayerDEBUG("Retrying setting state to PLAYING");
 			data->is_live = (gst_element_set_state(data->pipeline,
 					GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 		}
@@ -85,7 +84,7 @@ void execute_seek(gint64 desired_position, CustomData *data) {
 
 	if (!data->is_live) {
 		/* Perform the seek now */
-		GST_DEBUG("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS(desired_position));
+		GPlayerDEBUG("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS(desired_position));
 		data->last_seek_time = gst_util_get_timestamp();
 		gst_element_seek_simple(data->pipeline, GST_FORMAT_TIME,
 				GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, desired_position);
@@ -100,9 +99,9 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	gchar *message_string;
 
 	gst_message_parse_error(msg, &err, &debug_info);
-	GST_DEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src),
+	GPlayerDEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src),
 			err->message);
-	GST_DEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
+	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
 	if (strcmp(err->message, "Not Found") == 0
 			|| strcmp(err->message, "Internal data stream error.") == 0) {
 		gplayer_error(err->code, data);
@@ -128,30 +127,30 @@ void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
 		 * we only use the GValue approach here because it is more generic */
 		val = gst_tag_list_get_value_index(list, tag, i);
 		if (G_VALUE_HOLDS_STRING(val)) {
-			GST_DEBUG("\t%20s : %s\n", tag, g_value_get_string(val));
+			GPlayerDEBUG("\t%20s : %s\n", tag, g_value_get_string(val));
 			if (strcmp(tag, "title") == 0) {
 				gplayer_metadata_update(data, g_value_get_string(val));
 			}
 		} else if (G_VALUE_HOLDS_UINT(val)) {
-			GST_DEBUG("\t%20s : %u\n", tag, g_value_get_uint(val));
+			GPlayerDEBUG("\t%20s : %u\n", tag, g_value_get_uint(val));
 		} else if (G_VALUE_HOLDS_DOUBLE(val)) {
-			GST_DEBUG("\t%20s : %g\n", tag, g_value_get_double(val));
+			GPlayerDEBUG("\t%20s : %g\n", tag, g_value_get_double(val));
 		} else if (G_VALUE_HOLDS_BOOLEAN(val)) {
-			GST_DEBUG("\t%20s : %s\n", tag,
+			GPlayerDEBUG("\t%20s : %s\n", tag,
 					(g_value_get_boolean(val)) ? "true" : "false");
 		} else if (GST_VALUE_HOLDS_BUFFER(val)) {
 			GstBuffer *buf = gst_value_get_buffer(val);
 			guint buffer_size = gst_buffer_get_size(buf);
 
-			GST_DEBUG("\t%20s : buffer of size %u\n", tag, buffer_size);
+			GPlayerDEBUG("\t%20s : buffer of size %u\n", tag, buffer_size);
 		} else if (GST_VALUE_HOLDS_DATE_TIME(val)) {
 			GstDateTime *dt = g_value_get_boxed(val);
 			gchar *dt_str = gst_date_time_to_iso8601_string(dt);
 
-			GST_DEBUG("\t%20s : %s\n", tag, dt_str);
+			GPlayerDEBUG("\t%20s : %s\n", tag, dt_str);
 			g_free(dt_str);
 		} else {
-			GST_DEBUG("\t%20s : tag of type '%s'\n", tag,
+			GPlayerDEBUG("\t%20s : tag of type '%s'\n", tag,
 					G_VALUE_TYPE_NAME(val));
 		}
 	}
@@ -160,7 +159,7 @@ void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
 static void tag_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	GstTagList *tags = NULL;
 	gst_message_parse_tag(msg, &tags);
-	GST_DEBUG("Got tags from element %s:\n", GST_OBJECT_NAME(msg->src));
+	GPlayerDEBUG("Got tags from element %s:\n", GST_OBJECT_NAME(msg->src));
 	gst_tag_list_foreach(tags, (GstTagForeachFunc) print_one_tag, data);
 	gst_tag_list_unref(tags);
 	gst_message_unref(msg);
@@ -193,7 +192,7 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 		return;
 
 	gst_message_parse_buffering(msg, &data->buffering_level);
-	GST_DEBUG("buffering: %d", data->buffering_level);
+	GPlayerDEBUG("buffering: %d", data->buffering_level);
 	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
 		buffer_size(data, DEFAULT_BUFFER);
 		data->target_state = GST_STATE_PLAYING;
@@ -239,7 +238,7 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 void check_initialization_complete(CustomData *data) {
 	JNIEnv *env = get_jni_env();
 	if (!data->initialized && data->main_loop) {
-		GST_DEBUG(
+		GPlayerDEBUG(
 				"Initialization complete, notifying application. main_loop:%p",
 				data->main_loop);
 		gplayer_notify_init_complete(data);
@@ -256,12 +255,12 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 	GstStructure *new_pad_struct = NULL;
 	const gchar *new_pad_type = NULL;
 
-	GST_DEBUG("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad),
+	GPlayerDEBUG("Received new pad '%s' from '%s':\n", GST_PAD_NAME(new_pad),
 			GST_ELEMENT_NAME(src));
 
 	/* If our converter is already linked, we have nothing to do here */
 	if (gst_pad_is_linked(sink_pad)) {
-		GST_DEBUG("  We are already linked. Ignoring.\n");
+		GPlayerDEBUG("  We are already linked. Ignoring.\n");
 		goto exit;
 	}
 
@@ -270,24 +269,24 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 	new_pad_struct = gst_caps_get_structure(new_pad_caps, 0);
 	new_pad_type = gst_structure_get_name(new_pad_struct);
 	if (!g_str_has_prefix(new_pad_type, "audio/x-raw")) {
-		GST_DEBUG("  It has type '%s' which is not raw audio. Ignoring.\n",
+		GPlayerDEBUG("  It has type '%s' which is not raw audio. Ignoring.\n",
 				new_pad_type);
 		goto exit;
 	}
 
 	if (gst_element_link(data->convert, data->sink)) {
-		GST_DEBUG("Elements could not be linked.\n");
+		GPlayerDEBUG("Elements could not be linked.\n");
 	}
 	/* Attempt the link */
 	ret = gst_pad_link(new_pad, sink_pad);
 	if (GST_PAD_LINK_FAILED(ret)) {
-		GST_DEBUG("  Type is '%s' but link failed.\n", new_pad_type);
+		GPlayerDEBUG("  Type is '%s' but link failed.\n", new_pad_type);
 		gplayer_error(-1, data);
 		data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	} else {
-		GST_DEBUG("  Link succeeded (type '%s').\n", new_pad_type);
+		GPlayerDEBUG("  Link succeeded (type '%s').\n", new_pad_type);
 	}
 
 	exit:
@@ -318,7 +317,7 @@ void build_pipeline(CustomData *data) {
 	if (!data->pipeline || !data->source || !data->convert || !data->buffer
 			|| !data->sink) {
 		gplayer_error(-1, data);
-		GST_DEBUG("Not all elements could be created.\n");
+		GPlayerDEBUG("Not all elements could be created.\n");
 		return;
 	}
 
@@ -326,7 +325,7 @@ void build_pipeline(CustomData *data) {
 			data->buffer, data->sink, NULL);
 	if (!gst_element_link(data->buffer, data->convert)
 			|| !gst_element_link(data->convert, data->sink)) {
-		GST_DEBUG("Elements could not be linked.\n");
+		GPlayerDEBUG("Elements could not be linked.\n");
 		gst_object_unref(data->pipeline);
 		return;
 	}
@@ -367,7 +366,7 @@ void build_pipeline(CustomData *data) {
 static void *app_function(void *userdata) {
 	CustomData *data = (CustomData *) userdata;
 
-	GST_DEBUG("Creating pipeline in CustomData at %p", data);
+	GPlayerDEBUG("Creating pipeline in CustomData at %p", data);
 
 	/* Create our own GLib Main Context and make it the default one */
 	data->context = g_main_context_new();
@@ -378,11 +377,11 @@ static void *app_function(void *userdata) {
 	build_pipeline(data);
 
 	/* Create a GLib Main Loop and set it to run */
-	GST_DEBUG("Entering main loop... (CustomData:%p)", data);
+	GPlayerDEBUG("Entering main loop... (CustomData:%p)", data);
 	data->main_loop = g_main_loop_new(data->context, FALSE);
 	check_initialization_complete(data);
 	g_main_loop_run(data->main_loop);
-	GST_DEBUG("Exited main loop");
+	GPlayerDEBUG("Exited main loop");
 	g_main_loop_unref(data->main_loop);
 	data->main_loop = NULL;
 
@@ -429,12 +428,9 @@ void gst_native_init(JNIEnv* env, jobject thiz) {
 	CustomData *data = g_new0(CustomData, 1);
 	data->last_seek_time = GST_CLOCK_TIME_NONE;
 	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, data);
-	GST_DEBUG_CATEGORY_INIT(debug_category, "gplayer", 0,
-			"Aupeo GStreamer Player");
-	gst_debug_set_threshold_for_name("gplayer", GST_LEVEL_DEBUG);
-	GST_DEBUG("Created CustomData at %p", data);
+	GPlayerDEBUG("Created CustomData at %p", data);
 	data->app = (*env)->NewGlobalRef(env, thiz);
-	GST_DEBUG("Created GlobalRef for app object at %p", data->app);
+	GPlayerDEBUG("Created GlobalRef for app object at %p", data->app);
 	pthread_create(&gst_app_thread, NULL, &app_function, data);
 }
 
@@ -443,14 +439,14 @@ void gst_native_finalize(JNIEnv* env, jobject thiz) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
 	if (!data)
 		return;
-	GST_DEBUG("Quitting main loop...");
+	GPlayerDEBUG("Quitting main loop...");
 	g_main_loop_quit(data->main_loop);
-	GST_DEBUG("Waiting for thread to finish...");
+	GPlayerDEBUG("Waiting for thread to finish...");
 	pthread_join(gst_app_thread, NULL);
-	GST_DEBUG("Deleting GlobalRef for app object at %p", data->app);
+	GPlayerDEBUG("Deleting GlobalRef for app object at %p", data->app);
 	(*env)->DeleteGlobalRef(env, data->app);
-	GST_DEBUG("Freeing CustomData at %p", data);
+	GPlayerDEBUG("Freeing CustomData at %p", data);
 	g_free(data);
 	SET_CUSTOM_DATA(env, thiz, custom_data_field_id, NULL);
-	GST_DEBUG("Done finalizing");
+	GPlayerDEBUG("Done finalizing");
 }

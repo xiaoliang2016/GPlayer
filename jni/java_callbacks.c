@@ -12,7 +12,7 @@
 
 void gplayer_error(const gint message, CustomData *data) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending error code: %i", message);
+	GPlayerDEBUG("Sending error code: %i", message);
 	(*env)->CallVoidMethod(env, data->app, gplayer_error_id, message);
 	if ((*env)->ExceptionCheck(env)) {
 		GST_ERROR("Failed to call Java method");
@@ -22,7 +22,7 @@ void gplayer_error(const gint message, CustomData *data) {
 
 void gplayer_playback_complete(CustomData *data) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Playback Complete Event");
+	GPlayerDEBUG("Sending Playback Complete Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_playback_complete_id, NULL);
 	if ((*env)->ExceptionCheck(env)) {
 		GST_ERROR("Failed to call Java method");
@@ -32,7 +32,7 @@ void gplayer_playback_complete(CustomData *data) {
 
 void gplayer_playback_running(CustomData *data) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Playback Running Event");
+	GPlayerDEBUG("Sending Playback Running Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_playback_running_id, NULL);
 	if ((*env)->ExceptionCheck(env)) {
 		GST_ERROR("Failed to call Java method");
@@ -42,7 +42,7 @@ void gplayer_playback_running(CustomData *data) {
 
 void gplayer_prepare_complete(CustomData *data) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Prepare Complete Event");
+	GPlayerDEBUG("Sending Prepare Complete Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_prepared_method_id, NULL);
 	if ((*env)->ExceptionCheck(env)) {
 		GST_ERROR("Failed to call Java method");
@@ -52,7 +52,7 @@ void gplayer_prepare_complete(CustomData *data) {
 
 void gplayer_metadata_update(CustomData *data, const gchar *metadata) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Metadata Event");
+	GPlayerDEBUG("Sending Metadata Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_metadata_method_id,
 			((*env)->NewStringUTF(env, metadata)));
 	if ((*env)->ExceptionCheck(env)) {
@@ -63,7 +63,7 @@ void gplayer_metadata_update(CustomData *data, const gchar *metadata) {
 
 void gplayer_notify_time(CustomData *data, int time) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Time Event");
+	GPlayerDEBUG("Sending Time Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_notify_time_id,
 			time);
 	if ((*env)->ExceptionCheck(env)) {
@@ -74,7 +74,7 @@ void gplayer_notify_time(CustomData *data, int time) {
 
 void gplayer_notify_init_complete(CustomData *data) {
 	JNIEnv *env = get_jni_env();
-	GST_DEBUG("Sending Init Complete Event");
+	GPlayerDEBUG("Sending Init Complete Event");
 	(*env)->CallVoidMethod(env, data->app, gplayer_initialized_method_id,
 			time);
 	if ((*env)->ExceptionCheck(env)) {

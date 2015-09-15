@@ -5,6 +5,8 @@
  *      Author: Krzysztof Gawrys
  */
 
+#include <android/log.h>
+
 GST_DEBUG_CATEGORY_STATIC(debug_category);
 #define GST_CAT_DEFAULT debug_category
 
@@ -45,3 +47,14 @@ typedef struct _CustomData {
 	gboolean allow_seek;
 	int notify_time;
 } CustomData;
+
+
+static inline void
+GPlayerDEBUG (const char *format, ...)
+{
+  va_list varargs;
+
+  va_start (varargs, format);
+  __android_log_print (ANDROID_LOG_DEBUG, "gplayer", format, varargs);
+  va_end (varargs);
+}

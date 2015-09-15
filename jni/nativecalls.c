@@ -5,7 +5,6 @@
  *      Author: Krzysztof Gawrys
  */
 
-#include <android/log.h>
 #include <jni.h>
 #include <gst/gst.h>
 #include <pthread.h>
@@ -63,7 +62,7 @@ static gboolean gst_native_isplaying(JNIEnv* env, jobject thiz) {
 
 static void gst_native_volume(JNIEnv* env, jobject thiz, float left, float right) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
-	GST_DEBUG("Set volume to %f", (float ) ((left + right) / 2));
+	GPlayerDEBUG("Set volume to %f", (float ) ((left + right) / 2));
 	g_object_set(data->pipeline, "volume", (float) ((left + right) / 2), NULL);
 }
 
@@ -119,7 +118,7 @@ static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 		return;
 	const jbyte *char_uri = (*env)->GetStringUTFChars(env, uri, NULL);
 	gchar *url = gst_filename_to_uri(char_uri, NULL);
-	GST_DEBUG("Setting URI to %s", url);
+	GPlayerDEBUG("Setting URI to %s", url);
 	if (data->target_state >= GST_STATE_READY)
 		gst_element_set_state(data->pipeline, GST_STATE_READY);
 	g_object_set(data->source, "uri", url, NULL);
@@ -139,7 +138,7 @@ static void gst_native_set_url(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	if (!data || !data->pipeline)
 		return;
 	const jbyte *char_uri = (*env)->GetStringUTFChars(env, uri, NULL);
-	GST_DEBUG("Setting URL to %s", char_uri);
+	GPlayerDEBUG("Setting URL to %s", char_uri);
 	if (data->target_state >= GST_STATE_READY)
 		gst_element_set_state(data->pipeline, GST_STATE_READY);
 	g_object_set(data->source, "uri", char_uri, NULL);
@@ -158,7 +157,7 @@ static void gst_native_play(JNIEnv* env, jobject thiz) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
 	if (!data)
 		return;
-	GST_DEBUG("Setting state to PLAYING");
+	GPlayerDEBUG("Setting state to PLAYING");
 	data->target_state = GST_STATE_PLAYING;
 	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING)
 			== GST_STATE_CHANGE_NO_PREROLL);
@@ -169,7 +168,7 @@ static void gst_native_pause(JNIEnv* env, jobject thiz) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
 	if (!data)
 		return;
-	GST_DEBUG("Setting state to PAUSED");
+	GPlayerDEBUG("Setting state to PAUSED");
 	data->target_state = GST_STATE_PAUSED;
 	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED)
 			== GST_STATE_CHANGE_NO_PREROLL);
@@ -184,7 +183,7 @@ static void gst_native_set_position(JNIEnv* env, jobject thiz, int milliseconds)
 	if (data->state >= GST_STATE_PAUSED) {
 		execute_seek(desired_position, data);
 	} else {
-		GST_DEBUG("Scheduling seek to %" GST_TIME_FORMAT " for later",
+		GPlayerDEBUG("Scheduling seek to %" GST_TIME_FORMAT " for later",
 				GST_TIME_ARGS(desired_position));
 		data->desired_position = desired_position;
 	}
@@ -195,7 +194,7 @@ JNIEnv *attach_current_thread(void) {
 	JNIEnv *env;
 	JavaVMAttachArgs args;
 
-	GST_DEBUG("Attaching thread %p", g_thread_self());
+	GPlayerDEBUG("Attaching thread %p", g_thread_self());
 	args.version = JNI_VERSION_1_4;
 	args.name = NULL;
 	args.group = NULL;
@@ -210,7 +209,7 @@ JNIEnv *attach_current_thread(void) {
 
 /* Unregister this thread from the VM */
 void detach_current_thread(void *env) {
-	GST_DEBUG("Detaching thread %p", g_thread_self());
+	GPlayerDEBUG("Detaching thread %p", g_thread_self());
 	(*java_vm)->DetachCurrentThread(java_vm);
 }
 
@@ -219,11 +218,8 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	JNIEnv *env = NULL;
 
 	java_vm = vm;
-	setenv("GST_DEBUG", "*:1", 1);
-	setenv("GST_DEBUG_NO_COLOR", "0", 1);
-
 	if ((*vm)->GetEnv(vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
-		__android_log_print(ANDROID_LOG_ERROR, "gplayer", "Could not retrieve JNIEnv");
+		GPlayerDEBUG("Could not retrieve JNIEnv");
 		return 0;
 	}
 	jclass klass = (*env)->FindClass(env, "com/aupeo/gplayer/GPlayer");
