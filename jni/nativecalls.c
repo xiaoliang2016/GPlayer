@@ -53,21 +53,25 @@ void gst_native_class_init(JNIEnv* env, jclass klass) {
 }
 
 static gboolean gst_native_isplaying(JNIEnv* env, jobject thiz) {
-	GstState state;
-	GstState pending;
+//	GstState state;
+//	GstState pending;
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
-	gst_element_get_state(data->pipeline, &state, &pending, GST_CLOCK_TIME_NONE);
-	return state == GST_STATE_PLAYING;
+//	gst_element_get_state(data->pipeline, &state, &pending, GST_CLOCK_TIME_NONE);
+	return data->state == GST_STATE_PLAYING;
 }
 
 static void gst_native_volume(JNIEnv* env, jobject thiz, float left, float right) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+	if (!data || !data->pipeline)
+		return;
 	GPlayerDEBUG("Set volume to %f", (float ) ((left + right) / 2));
 	g_object_set(data->pipeline, "volume", (float) ((left + right) / 2), NULL);
 }
 
 static void gst_native_buffer_size(JNIEnv* env, jobject thiz, int size) {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+	if (!data || !data->pipeline)
+		return;
 	buffer_size(data, size);
 }
 
