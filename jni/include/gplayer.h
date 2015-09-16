@@ -23,13 +23,6 @@ static pthread_t gst_app_thread;
  * confuse some demuxers. */
 #define SEEK_MIN_DELAY (500 * GST_MSECOND)
 
-
-/* playbin2 flags */
-typedef enum {
-	GST_PLAY_FLAG_TEXT = (1 << 2), /* We want subtitle output */
-	GST_PLAY_FLAG_DOWNLOAD = (1 << 7), /* Enable progressive download (on selected formats) */
-} GstPlayFlags;
-
 /* These global variables cache values which are not changing during execution */
 extern jfieldID custom_data_field_id;
 

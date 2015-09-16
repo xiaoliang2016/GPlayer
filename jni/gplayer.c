@@ -311,7 +311,6 @@ void build_pipeline(CustomData *data) {
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
 	data->resample = gst_element_factory_make("audioresample", "resample");
-	g_object_set(data->resample, "quality", (gint) 10, NULL);
 	data->buffer = gst_element_factory_make("queue2", "buffer");
 	data->convert = gst_element_factory_make("audioconvert", "convert");
 	data->sink = gst_element_factory_make("autoaudiosink", "sink");
@@ -332,10 +331,6 @@ void build_pipeline(CustomData *data) {
 		gst_object_unref(data->pipeline);
 		return;
 	}
-
-	g_object_get(data->pipeline, "flags", &flags, NULL);
-	flags &= ~GST_PLAY_FLAG_TEXT;
-	g_object_set(data->pipeline, "flags", flags, NULL);
 
 	g_signal_connect(data->source, "pad-added", (GCallback) pad_added_handler,
 			data);
