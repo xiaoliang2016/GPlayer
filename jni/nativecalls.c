@@ -128,7 +128,6 @@ static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	g_object_set(data->source, "uri", url, NULL);
 	(*env)->ReleaseStringUTFChars(env, uri, char_uri);
 	data->duration = GST_CLOCK_TIME_NONE;
-	data->buffering_level = 100;
 	data->allow_seek = seek;
 	data->is_live = (gst_element_set_state(data->pipeline, data->target_state)
 			== GST_STATE_CHANGE_NO_PREROLL);
@@ -148,7 +147,6 @@ static void gst_native_set_url(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	g_object_set(data->source, "uri", char_uri, NULL);
 	(*env)->ReleaseStringUTFChars(env, uri, char_uri);
 	data->duration = GST_CLOCK_TIME_NONE;
-	data->buffering_level = 100;
 	data->allow_seek = seek;
 	data->is_live = (gst_element_set_state(data->pipeline, data->target_state)
 			== GST_STATE_CHANGE_NO_PREROLL);
