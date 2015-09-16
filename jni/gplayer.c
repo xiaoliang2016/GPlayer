@@ -310,21 +310,24 @@ void build_pipeline(CustomData *data) {
 
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
+	data->resample = gst_element_factory_make("audioresample", "resample");
+	g_object_set(data->resample, "quality", (gint) 10, NULL);
 	data->buffer = gst_element_factory_make("queue2", "buffer");
 	data->convert = gst_element_factory_make("audioconvert", "convert");
 	data->sink = gst_element_factory_make("autoaudiosink", "sink");
 
-	if (!data->pipeline || !data->source || !data->convert || !data->buffer
+	if (!data->pipeline || !data->resample || !data->source || !data->convert || !data->buffer
 			|| !data->sink) {
 		gplayer_error(-1, data);
 		GPlayerDEBUG("Not all elements could be created.\n");
 		return;
 	}
 
-	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->convert,
+	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->resample, data->convert,
 			data->buffer, data->sink, NULL);
 	if (!gst_element_link(data->buffer, data->convert)
-			|| !gst_element_link(data->convert, data->sink)) {
+			|| !gst_element_link(data->convert, data->resample)
+			|| !gst_element_link(data->resample, data->sink)) {
 		GPlayerDEBUG("Elements could not be linked.\n");
 		gst_object_unref(data->pipeline);
 		return;
