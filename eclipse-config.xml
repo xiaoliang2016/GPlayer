@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdtprojectproperties>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.IncludePaths">
+<language name="C Source File">
+<includepath>C:\repos\Aupeo-workspace\GPlayer</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\gstreamer-1.0\include</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9\arm-linux-androideabi</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include-fixed</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9\backward</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\sysroot\usr\include</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\glib-2.0\include\</includepath>
+
+</language>
+<language name="Object File">
+
+</language>
+<language name="Assembly Source File">
+<includepath>C:\repos\Aupeo-workspace\GPlayer</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9\arm-linux-androideabi</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\lib\gcc\arm-linux-androideabi\4.9\include-fixed</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\include\c++\4.9\backward</includepath>
+<includepath>C:\tools\android-ndk-standalone-21\sysroot\usr\include</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0</includepath>
+<includepath>C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\glib-2.0\include\</includepath>
+
+</language>
+</section>
+<section name="org.eclipse.cdt.internal.ui.wizards.settingswizards.Macros">
+<language name="C Source File">
+
+</language>
+<language name="Object File">
+
+</language>
+<language name="Assembly Source File">
+
+</language>
+</section>
+</cdtprojectproperties>

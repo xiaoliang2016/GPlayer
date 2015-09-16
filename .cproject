@@ -46,6 +46,7 @@
 									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\sysroot\usr\include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\glib-2.0\include\&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1581441334" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -74,6 +75,7 @@
 									<listOptionValue builtIn="false" value="&quot;C:\tools\android-ndk-standalone-21\sysroot\usr\include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\gstreamer-1.0&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\include\glib-2.0&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;C:\repos\Aupeo-workspace\gstreamer-libs\armeabi\gstreamer-1.0-android-1.5.90\lib\glib-2.0\include\&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1464311836" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
