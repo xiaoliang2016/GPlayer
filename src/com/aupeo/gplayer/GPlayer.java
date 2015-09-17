@@ -203,8 +203,6 @@ public class GPlayer {
 
 	private ConnectionChangeReceiver ccr = new ConnectionChangeReceiver();
 
-	static String logfile;
-	static Thread logs;
 	private Process logcat_process;
 
 	public GPlayer(Context context) {
