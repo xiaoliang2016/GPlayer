@@ -19,7 +19,7 @@ void buffer_size(CustomData *data, int size) {
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "low-percent", (gint) 95, NULL);
-		g_object_set(data->buffer, "use-rate-estimate", (gboolean) TRUE, NULL);
+		g_object_set(data->buffer, "use-rate-estimate", (gboolean) FALSE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
 	}
 }
@@ -65,6 +65,7 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 		gplayer_notify_time(data, (int) (position / GST_MSECOND));
 		if (data->network_error == TRUE) {
 			GPlayerDEBUG("Retrying setting state to PLAYING");
+			data->target_state = GST_STATE_PLAYING;
 			data->is_live = (gst_element_set_state(data->pipeline,
 					GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 		}
@@ -173,7 +174,6 @@ static void eos_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 				== GST_STATE_CHANGE_NO_PREROLL);
 		gplayer_playback_complete(data);
 	} else {
-		//data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_NULL)
 				== GST_STATE_CHANGE_NO_PREROLL);
 	}
@@ -193,7 +193,7 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 
 	gst_message_parse_buffering(msg, &data->buffering_level);
 	GPlayerDEBUG("buffering: %d", data->buffering_level);
-	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
+	if (data->buffering_level > 25 && data->target_state >= GST_STATE_PLAYING) {
 		buffer_size(data, DEFAULT_BUFFER);
 		data->target_state = GST_STATE_PLAYING;
 		data->is_live = (gst_element_set_state(data->pipeline,
@@ -331,6 +331,8 @@ void build_pipeline(CustomData *data) {
 		gst_object_unref(data->pipeline);
 		return;
 	}
+
+	buffer_size(data, SMALL_BUFFER);
 
 	g_signal_connect(data->source, "pad-added", (GCallback) pad_added_handler,
 			data);
