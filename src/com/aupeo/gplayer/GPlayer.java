@@ -167,7 +167,7 @@ public class GPlayer {
 		@Override
 		public void handleMessage(Message msg) {
 			if (msg.what == GPLAYER_NETWORK_CHANGE) {
-				nativeSetBufferSize(64000);
+				nativeSetBufferSize(370000);
 				new Thread(new Runnable() {
 
 					@Override
