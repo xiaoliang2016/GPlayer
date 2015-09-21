@@ -229,9 +229,14 @@ public class GPlayer {
 
 			try {
 				Runtime.getRuntime().exec( "logcat -c");
-				ProcessBuilder pb = new ProcessBuilder("logcat", "-f", logfile.toString());
-				pb.redirectErrorStream(true);
-				logcat_process = pb.start();
+				int pid = android.os.Process.myPid();
+				String[] cmd = {
+						"/system/bin/sh",
+						"-c",
+						"logcat -v threadtime | grep " + pid + " > " + logfile.toString()
+						};
+				
+				logcat_process = Runtime.getRuntime().exec(cmd);
 			} catch (IOException e) {
 				Log.d("GPlayer", "GStreamer message: ", e);
 			}

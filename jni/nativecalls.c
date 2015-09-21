@@ -220,6 +220,8 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	JNIEnv *env = NULL;
 
 	java_vm = vm;
+	setenv("GST_DEBUG", "*:1", 1);
+	setenv("GST_DEBUG_NO_COLOR", "0", 1);
 	if ((*vm)->GetEnv(vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
 		GPlayerDEBUG("Could not retrieve JNIEnv");
 		return 0;
