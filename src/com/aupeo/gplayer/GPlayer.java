@@ -340,7 +340,7 @@ public class GPlayer {
 		Log.d("GPlayer", "onMetadata '" + string + "'");
 		if (mOnGPlayerMetadataListener != null) {
 			String meta[] = string.split("\\ \\-\\ ");
-			mOnGPlayerMetadataListener.onGPlayerMetadata(meta[0], meta[1]);
+			mOnGPlayerMetadataListener.onGPlayerMetadata(meta[1], meta[0]);
 		} else {
 			Log.d("GPlayer", "onMetadata NO mOnGPlayerMetadataListener");
 		}
