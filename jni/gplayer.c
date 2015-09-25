@@ -6,6 +6,7 @@
  */
 
 #include <jni.h>
+#include <time.h>
 #include "include/gplayer.h"
 
 void buffer_size(CustomData *data, int size) {
@@ -18,16 +19,13 @@ void buffer_size(CustomData *data, int size) {
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
-		g_object_set(data->buffer, "low-percent", (gint) 95, NULL);
+		g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
 		g_object_set(data->buffer, "use-rate-estimate", (gboolean) FALSE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
 	}
 }
 
-/* If we have pipeline and it is running, query the current position and clip duration and inform
- * the application */
 static gboolean gst_notify_time_cb(CustomData *data) {
-	gint64 current = -1;
 	gint64 position;
 
 	/* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
@@ -48,27 +46,36 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 	}
 
 	if (data->target_state >= GST_STATE_PLAYING) {
-		JNIEnv *env = get_jni_env();
-		guint maxsizebytes;
-		guint currentlevelbytes;
-		g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
-		g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes,
-				NULL);
-		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
-				&data->duration)) {
-			data->duration = 0;
-		}
-
-		GPlayerDEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld",
-				maxsizebytes, currentlevelbytes, data->duration);
-
 		gplayer_notify_time(data, (int) (position / GST_MSECOND));
-		if (data->network_error == TRUE) {
-			GPlayerDEBUG("Retrying setting state to PLAYING");
-			data->target_state = GST_STATE_PLAYING;
-			data->is_live = (gst_element_set_state(data->pipeline,
-					GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-		}
+	}
+	return TRUE;
+}
+
+static gboolean gst_worker_cb(CustomData *data) {
+	gint64 current = -1;
+
+	/* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
+	if (!data || !data->pipeline)
+		return TRUE;
+
+	guint maxsizebytes;
+	guint currentlevelbytes;
+	g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
+	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes,
+	NULL);
+	if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
+			&data->duration)) {
+		data->duration = 0;
+	}
+
+	GPlayerDEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld", maxsizebytes,
+			currentlevelbytes, data->duration);
+
+	if (data->network_error == TRUE) {
+		GPlayerDEBUG("Retrying setting state to PLAYING");
+		data->target_state = GST_STATE_PLAYING;
+		data->is_live = (gst_element_set_state(data->pipeline,
+				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 	return TRUE;
 }
@@ -344,8 +351,13 @@ void build_pipeline(CustomData *data) {
 	bus_source = gst_bus_create_watch(bus);
 	g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func,
 			NULL, NULL);
+	data->timeout_worker = g_timeout_source_new(WORKER_TIMEOUT);
+	g_source_set_callback(data->timeout_worker,
+			(GSourceFunc) gst_worker_cb, data, NULL);
+	g_source_attach(data->timeout_worker, data->context);
 	g_source_attach(bus_source, data->context);
 	g_source_unref(bus_source);
+	g_source_unref(data->timeout_worker);
 	g_signal_connect(G_OBJECT(bus), "message::error", (GCallback) error_cb,
 			data);
 	g_signal_connect(G_OBJECT(bus), "message::eos", (GCallback) eos_cb, data);

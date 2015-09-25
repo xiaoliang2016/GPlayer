@@ -42,6 +42,7 @@ typedef struct _CustomData {
 	GstElement *sink;
 	gboolean allow_seek;
 	int notify_time;
+	GSource *timeout_worker;
 } CustomData;
 
 
