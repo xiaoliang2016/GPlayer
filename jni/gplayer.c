@@ -351,6 +351,9 @@ void build_pipeline(CustomData *data) {
 	bus_source = gst_bus_create_watch(bus);
 	g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func,
 			NULL, NULL);
+	if (data->timeout_worker) {
+		g_source_destroy(data->timeout_worker);
+	}
 	data->timeout_worker = g_timeout_source_new(WORKER_TIMEOUT);
 	g_source_set_callback(data->timeout_worker,
 			(GSourceFunc) gst_worker_cb, data, NULL);
