@@ -52,6 +52,6 @@ GPlayerDEBUG (const char *format, ...)
   va_list varargs;
 
   va_start (varargs, format);
-  __android_log_vprint (ANDROID_LOG_DEBUG, "gplayer", format, varargs);
+  __android_log_vprint (ANDROID_LOG_INFO, "gplayer", format, varargs);
   va_end (varargs);
 }
