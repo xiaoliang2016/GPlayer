@@ -111,7 +111,7 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 			err->message);
 	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
 	if (strcmp(err->message, "Not Found") == 0
-			|| strcmp(err->message, "Internal data stream error.") == 0) {
+			|| (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL)) {
 		gplayer_error(err->code, data);
 		data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline,
