@@ -15,12 +15,20 @@ import org.freedesktop.gstreamer.GStreamer;
 
 import android.content.Context;
 import android.content.IntentFilter;
+import android.net.NetworkInfo;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class GPlayer {
+
+	private static final int SLOW_NETWORK = 370000;
+	private static final int FAST_NETWORK = 2097152;
+	private static final boolean LOG_FILE = true;
+	protected static final int GPLAYER_NETWORK_CHANGE = 0;
 
 	public interface OnTimeListener {
 		void onTime(int time);
@@ -57,8 +65,6 @@ public class GPlayer {
 	public interface OnErrorListener {
 		boolean onError(int errorCode);
 	}
-
-	protected static final int GPLAYER_NETWORK_CHANGE = 0;
 
 	public void setOnErrorListener(OnErrorListener listener) {
 		mOnErrorListener = listener;
@@ -167,7 +173,14 @@ public class GPlayer {
 		@Override
 		public void handleMessage(Message msg) {
 			if (msg.what == GPLAYER_NETWORK_CHANGE) {
-				nativeSetBufferSize(370000);
+				NetworkInfo ni = GPlayerConnectivity.getNetworkInfo(context);
+				if (ni != null
+						&& GPlayerConnectivity.isConnectionFast(ni.getType(),
+								ni.getSubtype())) {
+					nativeSetBufferSize(FAST_NETWORK);
+				} else {
+					nativeSetBufferSize(SLOW_NETWORK);
+				}
 				new Thread(new Runnable() {
 
 					@Override
@@ -208,42 +221,45 @@ public class GPlayer {
 	public GPlayer(Context context) {
 		this.context = context;
 		instance = this;
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss",
-				Locale.US);
-		if (isExternalStorageWritable()) {
+		if (LOG_FILE) {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss",
+					Locale.US);
+			if (isExternalStorageWritable()) {
 
-			File appDirectory = new File(context.getCacheDir() + "/GPlayer");
-			File logDirectory = new File(appDirectory + "/log");
-			File logfile = new File(logDirectory, "gplayer_logcat_"
-					+ sdf.format(new Date()) + ".log");
+				File appDirectory = new File(context.getCacheDir() + "/GPlayer");
+				File logDirectory = new File(appDirectory + "/log");
+				File logfile = new File(logDirectory, "gplayer_logcat_"
+						+ sdf.format(new Date()) + ".log");
 
-			// create app folder
-			if (!appDirectory.exists()) {
-				appDirectory.mkdir();
-			}
+				// create app folder
+				if (!appDirectory.exists()) {
+					appDirectory.mkdir();
+				}
 
-			// create log folder
-			if (!logDirectory.exists()) {
-				logDirectory.mkdir();
-			}
+				// create log folder
+				if (!logDirectory.exists()) {
+					logDirectory.mkdir();
+				}
 
-			try {
-				Runtime.getRuntime().exec( "logcat -c");
-				int pid = android.os.Process.myPid();
-				String[] cmd = {
-						"/system/bin/sh",
-						"-c",
-						"logcat -v threadtime | grep " + pid + " > " + logfile.toString()
-						};
-				
-				logcat_process = Runtime.getRuntime().exec(cmd);
-			} catch (IOException e) {
-				Log.d("GPlayer", "GStreamer message: ", e);
+				try {
+					Runtime.getRuntime().exec("logcat -c");
+					int pid = android.os.Process.myPid();
+					String[] cmd = {
+							"/system/bin/sh",
+							"-c",
+							"logcat -v threadtime | grep " + pid + " > "
+									+ logfile.toString() };
+
+					logcat_process = Runtime.getRuntime().exec(cmd);
+				} catch (IOException e) {
+					Log.d("GPlayer", "GStreamer message: ", e);
+				}
 			}
 		}
 
 		context.registerReceiver(ccr, new IntentFilter(
 				"android.net.conn.CONNECTIVITY_CHANGE"));
+		
 		try {
 			GStreamer.init(context);
 		} catch (Exception e) {

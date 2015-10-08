@@ -71,6 +71,12 @@ static gboolean gst_worker_cb(CustomData *data) {
 	GPlayerDEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld", maxsizebytes,
 			currentlevelbytes, data->duration);
 
+	count_buffer_fill++;
+	if(count_buffer_fill == 20 && no_buffer_fill == 0) {
+		buffer_size(data, SMALL_BUFFER);
+		count_buffer_fill = 0;
+	}
+
 	if (data->network_error == TRUE) {
 		GPlayerDEBUG("Retrying setting state to PLAYING");
 		data->target_state = GST_STATE_PLAYING;
@@ -200,11 +206,18 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 
 	gst_message_parse_buffering(msg, &data->buffering_level);
 	GPlayerDEBUG("buffering: %d", data->buffering_level);
-	if (data->buffering_level > 25 && data->target_state >= GST_STATE_PLAYING) {
+	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
+		no_buffer_fill++;
 		buffer_size(data, DEFAULT_BUFFER);
 		data->target_state = GST_STATE_PLAYING;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+	}
+	if (data->buffering_level < 25) {
+		if (data->buffering_level == 0) {
+			no_buffer_fill = 0;
+		} else if (no_buffer_fill > 0)
+			no_buffer_fill--;
 	}
 }
 
@@ -310,6 +323,8 @@ void build_pipeline(CustomData *data) {
 	GSource *bus_source;
 	GError *error = NULL;
 	guint flags;
+
+	count_buffer_fill = 0;
 
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
