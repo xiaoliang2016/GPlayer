@@ -19,9 +19,11 @@ void buffer_size(CustomData *data, int size) {
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
 		g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
-		g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
+		g_object_set(data->buffer, "low-percent", (gint) 50, NULL);
 		g_object_set(data->buffer, "use-rate-estimate", (gboolean) FALSE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
+		g_object_set(data->buffer, "max-size-buffers", (guint) 100 * 15, NULL);
+		g_object_set(data->buffer, "max-size-time", (guint64) 15000000000, NULL);
 	}
 }
 
@@ -67,18 +69,19 @@ static gboolean gst_worker_cb(CustomData *data) {
 		data->duration = 0;
 	}
 
+	count_buffer_fill++;
+
+	if((count_buffer_fill == 8) && (data->position > last_position + 1999 )) {
+		no_buffer_fill = 0;
+		count_buffer_fill = 0;
+		last_position = data->position;
+	}
+
 	if (data->buffering_level < 5) {
 		if (data->buffering_level == 0) {
 			no_buffer_fill++;
 		}
 	}
-	count_buffer_fill++;
-
-	if((count_buffer_fill == 4) && (data->position > last_position)) {
-		no_buffer_fill = 0;
-		last_position = data->position;
-	}
-
 	if(count_buffer_fill == 20) {
 		count_buffer_fill = 0;
 		if (no_buffer_fill >= 16) {
@@ -130,7 +133,9 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
 	if (strcmp(err->message, "Not Found") == 0
 			|| (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL)) {
-		gplayer_error(err->code, data);
+		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source))) {
+			gplayer_error(err->code, data);
+		}
 		data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
@@ -299,9 +304,11 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 		goto exit;
 	}
 
+/*
 	if (gst_element_link(data->convert, data->sink)) {
 		GPlayerDEBUG("Elements could not be linked.\n");
 	}
+*/
 	/* Attempt the link */
 	ret = gst_pad_link(new_pad, sink_pad);
 	if (GST_PAD_LINK_FAILED(ret)) {
@@ -330,6 +337,7 @@ void build_pipeline(CustomData *data) {
 	guint flags;
 
 	count_buffer_fill = 0;
+	no_buffer_fill = 0;
 
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
@@ -349,8 +357,7 @@ void build_pipeline(CustomData *data) {
 		return;
 	}
 
-	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->resample, data->convert,
-			data->buffer, data->sink, NULL);
+	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->buffer, data->convert, data->resample, data->sink, NULL);
 	if (!gst_element_link(data->buffer, data->convert)
 			|| !gst_element_link(data->convert, data->resample)
 			|| !gst_element_link(data->resample, data->sink)) {

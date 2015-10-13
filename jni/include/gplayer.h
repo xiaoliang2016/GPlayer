@@ -15,7 +15,7 @@
 #include "gst_callbacks.h"
 
 #define SMALL_BUFFER 370000
-#define DEFAULT_BUFFER 2097152
+#define DEFAULT_BUFFER 4194304
 #define WORKER_TIMEOUT 250
 
 static pthread_t gst_app_thread;
