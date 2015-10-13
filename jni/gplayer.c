@@ -87,7 +87,7 @@ static gboolean gst_worker_cb(CustomData *data) {
 		no_buffer_fill = 0;
 	}
 
-	GPlayerDEBUG("buffer_fill: %i, buffer: %i%% [%i], clbyte: %i, duration: %ld", no_buffer_fill, data->buffering_level, maxsizebytes, currentlevelbytes, data->duration);
+	GPlayerDEBUG("buffer errors: %i, buffer: %i%% [%i], clbyte: %i, duration: %ld", no_buffer_fill, data->buffering_level, maxsizebytes, currentlevelbytes, data->duration);
 
 	if (data->network_error == TRUE) {
 		GPlayerDEBUG("Retrying setting state to PLAYING");
