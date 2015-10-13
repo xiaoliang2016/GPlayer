@@ -25,6 +25,7 @@ import android.util.Log;
 
 public class GPlayer {
 
+	public static final int ERROR_BUFFERING = 2;
 	private static final int SLOW_NETWORK = 370000;
 	private static final int FAST_NETWORK = 2097152;
 	private static final boolean LOG_FILE = true;

@@ -29,6 +29,7 @@ typedef struct _CustomData {
 	gboolean initialized;
 	GstState state;
 	gint64 duration;
+	gint64 position;
 	gint64 desired_position;
 	GstClockTime last_seek_time;
 	gboolean is_live;

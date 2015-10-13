@@ -26,7 +26,6 @@ void buffer_size(CustomData *data, int size) {
 }
 
 static gboolean gst_notify_time_cb(CustomData *data) {
-	gint64 position;
 
 	/* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
 	if (!data || !data->pipeline)
@@ -41,12 +40,12 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 	}
 
 	if (!gst_element_query_position(data->pipeline, GST_FORMAT_TIME,
-			&position)) {
-		position = 0;
+			&data->position)) {
+		data->position = 0;
 	}
 
 	if (data->target_state >= GST_STATE_PLAYING) {
-		gplayer_notify_time(data, (int) (position / GST_MSECOND));
+		gplayer_notify_time(data, (int) (data->position / GST_MSECOND));
 	}
 	return TRUE;
 }
@@ -68,14 +67,27 @@ static gboolean gst_worker_cb(CustomData *data) {
 		data->duration = 0;
 	}
 
-	GPlayerDEBUG("Notify - buffer: %i, clbyte: %i, duration: %ld", maxsizebytes,
-			currentlevelbytes, data->duration);
-
-	count_buffer_fill++;
-	if(count_buffer_fill == 20 && no_buffer_fill == 0) {
-		buffer_size(data, SMALL_BUFFER);
-		count_buffer_fill = 0;
+	if (data->buffering_level < 5) {
+		if (data->buffering_level == 0) {
+			no_buffer_fill++;
+		}
 	}
+	count_buffer_fill++;
+
+	if((count_buffer_fill == 4) && (data->position > last_position)) {
+		no_buffer_fill = 0;
+		last_position = data->position;
+	}
+
+	if(count_buffer_fill == 20) {
+		count_buffer_fill = 0;
+		if (no_buffer_fill >= 16) {
+			gplayer_error(2, data);
+		}
+		no_buffer_fill = 0;
+	}
+
+	GPlayerDEBUG("buffer_fill: %i, buffer: %i%% [$i], clbyte: %i, duration: %ld", no_buffer_fill, data->buffering_level, maxsizebytes, currentlevelbytes, data->duration);
 
 	if (data->network_error == TRUE) {
 		GPlayerDEBUG("Retrying setting state to PLAYING");
@@ -205,19 +217,12 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 		return;
 
 	gst_message_parse_buffering(msg, &data->buffering_level);
-	GPlayerDEBUG("buffering: %d", data->buffering_level);
 	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
-		no_buffer_fill++;
 		buffer_size(data, DEFAULT_BUFFER);
+		last_position = 0;
 		data->target_state = GST_STATE_PLAYING;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-	}
-	if (data->buffering_level < 25) {
-		if (data->buffering_level == 0) {
-			no_buffer_fill = 0;
-		} else if (no_buffer_fill > 0)
-			no_buffer_fill--;
 	}
 }
 

@@ -37,4 +37,4 @@ void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
 
 gint no_buffer_fill;
 gint count_buffer_fill;
-
+gint64 last_position;
