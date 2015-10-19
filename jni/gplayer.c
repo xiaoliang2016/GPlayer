@@ -125,14 +125,16 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	GPlayerDEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src),
 			err->message);
 	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
-	if (strcmp(err->message, "Not Found") == 0
-			|| (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL)) {
-		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source))) {
-			gplayer_error(err->code, data);
-		}
+	if (strcmp(err->message, "Not Found") == 0) {
 		data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+	}
+	if (strstr(err->message, "Internal") != NULL
+			&& strstr(err->message, "error") != NULL) {
+		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source))) {
+			gplayer_error(err->code, data);
+		}
 	}
 	g_error_free(err);
 	g_free(debug_info);
