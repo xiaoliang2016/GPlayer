@@ -34,11 +34,9 @@ static gboolean gst_notify_time_cb(CustomData *data) {
 		return TRUE;
 
 	/* If we didn't know it yet, query the stream duration */
-	if (!GST_CLOCK_TIME_IS_VALID(data->duration)) {
-		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
-				&data->duration)) {
-			data->duration = 0;
-		}
+	if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
+			&data->duration)) {
+		data->duration = -1;
 	}
 
 	if (!gst_element_query_position(data->pipeline, GST_FORMAT_TIME,
@@ -64,10 +62,6 @@ static gboolean gst_worker_cb(CustomData *data) {
 	g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
 	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes,
 	NULL);
-	if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
-			&data->duration)) {
-		data->duration = 0;
-	}
 
 	count_buffer_fill++;
 
@@ -106,7 +100,7 @@ static gboolean gst_worker_cb(CustomData *data) {
 void execute_seek(gint64 desired_position, CustomData *data) {
 	gint64 diff;
 
-	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek)
+	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek || data->duration < 0)
 		return;
 
 	diff = gst_util_get_timestamp() - data->last_seek_time;
@@ -207,11 +201,6 @@ static void eos_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_NULL)
 				== GST_STATE_CHANGE_NO_PREROLL);
 	}
-}
-
-/* Called when the duration of the media changes. Just mark it as unknown, so we re-query it in the next UI refresh. */
-static void duration_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
-	data->duration = GST_CLOCK_TIME_NONE;
 }
 
 /* Called when buffering messages are received. We inform the UI about the current buffering level and
@@ -394,8 +383,6 @@ void build_pipeline(CustomData *data) {
 	g_signal_connect(G_OBJECT(bus), "message::tag", (GCallback) tag_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::state-changed",
 			(GCallback) state_changed_cb, data);
-	g_signal_connect(G_OBJECT(bus), "message::duration",
-			(GCallback) duration_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::buffering",
 			(GCallback) buffering_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::clock-lost",
