@@ -334,7 +334,7 @@ void build_pipeline(CustomData *data) {
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
 	data->pipeline = gst_pipeline_new("test-pipeline");
-	data->allow_seek = false;
+	data->allow_seek = FALSE;
 
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
