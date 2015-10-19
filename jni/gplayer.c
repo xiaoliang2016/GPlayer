@@ -100,7 +100,7 @@ static gboolean gst_worker_cb(CustomData *data) {
 void execute_seek(gint64 desired_position, CustomData *data) {
 	gint64 diff;
 
-	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek || data->duration < 0)
+	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek || !(guint64)data->duration > 0)
 		return;
 
 	diff = gst_util_get_timestamp() - data->last_seek_time;
@@ -132,6 +132,7 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	}
 	if (strstr(err->message, "Internal") != NULL
 			&& strstr(err->message, "error") != NULL) {
+		gst_element_set_state(data->source, GST_STATE_READY);
 		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source))) {
 			gplayer_error(err->code, data);
 		}
@@ -216,9 +217,9 @@ static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 	if (data->buffering_level > 75 && data->target_state >= GST_STATE_PLAYING) {
 		buffer_size(data, DEFAULT_BUFFER);
 		last_position = 0;
-		data->target_state = GST_STATE_PLAYING;
 		data->is_live = (gst_element_set_state(data->pipeline,
 				GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+		data->network_error = FALSE;
 	}
 }
 
@@ -333,6 +334,7 @@ void build_pipeline(CustomData *data) {
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
 	data->pipeline = gst_pipeline_new("test-pipeline");
+	data->allow_seek = false;
 
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
