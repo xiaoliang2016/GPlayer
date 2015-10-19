@@ -40,10 +40,17 @@ typedef struct _CustomData {
 	GstElement *source;
 	GstElement *convert;
 	GstElement *buffer;
+	GstElement *prebuf;
+	GstElement *prebuf2;
+	GstElement *adder;
 	GstElement *sink;
+	GstElement *fakesink;
 	gboolean allow_seek;
 	int notify_time;
 	GSource *timeout_worker;
+	jbyte *url;
+	gboolean waitforpad;
+	gboolean usebuf2;
 } CustomData;
 
 

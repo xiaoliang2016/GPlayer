@@ -18,12 +18,13 @@ void buffer_size(CustomData *data, int size) {
 		g_object_set(data->source, "buffer-size", (guint) size, NULL);
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);
+
 		g_object_set(data->buffer, "use-buffering", (gboolean) TRUE, NULL);
-		g_object_set(data->buffer, "low-percent", (gint) 50, NULL);
 		g_object_set(data->buffer, "use-rate-estimate", (gboolean) FALSE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
 		g_object_set(data->buffer, "max-size-buffers", (guint) 100 * 15, NULL);
 		g_object_set(data->buffer, "max-size-time", (guint64) 15000000000, NULL);
+        g_object_set(data->buffer, "low-percent", (gint) 99, NULL);
 	}
 }
 
@@ -61,9 +62,14 @@ static gboolean gst_worker_cb(CustomData *data) {
 
 	guint maxsizebytes;
 	guint currentlevelbytes;
+	guint currentlevelbuffers;
+	guint prebufbuffers;
+	guint prebufbuffers2;
 	g_object_get(data->buffer, "max-size-bytes", &maxsizebytes, NULL);
-	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes,
-	NULL);
+	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes, NULL);
+	g_object_get(data->buffer, "current-level-buffers", &currentlevelbuffers, NULL);
+	g_object_get(data->prebuf, "current-level-buffers", &prebufbuffers, NULL);
+	g_object_get(data->prebuf2, "current-level-buffers", &prebufbuffers2, NULL);
 	if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME,
 			&data->duration)) {
 		data->duration = 0;
@@ -71,26 +77,50 @@ static gboolean gst_worker_cb(CustomData *data) {
 
 	count_buffer_fill++;
 
-	if((count_buffer_fill == 8) && (data->position > last_position + 1999 )) {
+	if ((count_buffer_fill == 8) && (data->position > last_position + 1999)) {
 		no_buffer_fill = 0;
 		count_buffer_fill = 0;
 		last_position = data->position;
-	}
+		if ((prebufbuffers == 0 && prebufbuffers2 == 0) && (data->duration == -1 || data->duration < 1) && !data->waitforpad) {
+			data->waitforpad = TRUE;
+			GPlayerDEBUG("all data drained...");
 
-	if (data->buffering_level < 5) {
-		if (data->buffering_level == 0) {
-			no_buffer_fill++;
+			if (prebufbuffers == 0 && data->usebuf2 == TRUE) {
+				data->usebuf2 = FALSE;
+				gst_element_unlink(data->source, data->prebuf);
+			}
+			if (prebufbuffers2 == 0 && data->usebuf2 == FALSE){
+				data->usebuf2 = TRUE;
+				gst_element_unlink(data->source, data->prebuf2);
+			}
+
+			gst_bin_remove(GST_BIN(data->pipeline), data->source);
+			gst_element_set_state(data->source, GST_STATE_NULL);
+
+			data->source = gst_element_factory_make("uridecodebin", "source");
+			gst_bin_add(GST_BIN(data->pipeline), data->source);
+
+			g_signal_connect(data->source, "pad-added", (GCallback) pad_added_handler,
+					data);
+
+			gst_element_set_state(data->source, GST_STATE_READY);
+			g_object_set(data->source, "uri", data->url, NULL);
 		}
 	}
-	if(count_buffer_fill == 20) {
+
+	if (data->buffering_level == 0) {
+		no_buffer_fill++;
+	}
+
+/*	if (count_buffer_fill == 20) {
 		count_buffer_fill = 0;
 		if (no_buffer_fill >= 16) {
 			gplayer_error(2, data);
 		}
 		no_buffer_fill = 0;
-	}
+	}*/
 
-	GPlayerDEBUG("buffer errors: %i, buffer: %i%% [%i], clbyte: %i, duration: %ld", no_buffer_fill, data->buffering_level, maxsizebytes, currentlevelbytes, data->duration);
+	GPlayerDEBUG("buf. err.: %i, buf.: %i%% [%i], clby: %i, clbu: %i, prebufbuffers: %i, prebufbuffers2: %i, dur: %ld", no_buffer_fill, data->buffering_level, maxsizebytes, currentlevelbytes, currentlevelbuffers, prebufbuffers, prebufbuffers2, data->duration);
 
 	if (data->network_error == TRUE) {
 		GPlayerDEBUG("Retrying setting state to PLAYING");
@@ -106,7 +136,7 @@ static gboolean gst_worker_cb(CustomData *data) {
 void execute_seek(gint64 desired_position, CustomData *data) {
 	gint64 diff;
 
-	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek)
+	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek || data->duration  == -1)
 		return;
 
 	diff = gst_util_get_timestamp() - data->last_seek_time;
@@ -136,9 +166,10 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data) {
 		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source))) {
 			gplayer_error(err->code, data);
 		}
-		data->target_state = GST_STATE_NULL;
+
+		/*data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline,
-				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);*/
 	}
 	g_error_free(err);
 	g_free(debug_info);
@@ -279,7 +310,14 @@ void check_initialization_complete(CustomData *data) {
 /* This function will be called by the pad-added signal */
 static void pad_added_handler(GstElement *src, GstPad *new_pad,
 		CustomData *data) {
-	GstPad *sink_pad = gst_element_get_static_pad(data->buffer, "sink");
+	GstPad *sink_pad;
+	if (data->usebuf2 == TRUE) {
+		sink_pad = gst_element_get_static_pad(data->prebuf2, "sink");
+		gst_element_link(data->prebuf2, data->adder);
+	} else {
+		sink_pad = gst_element_get_static_pad(data->prebuf, "sink");
+		gst_element_link(data->prebuf, data->adder);
+	}
 	GstPadLinkReturn ret;
 	GstCaps *new_pad_caps = NULL;
 	GstStructure *new_pad_struct = NULL;
@@ -304,22 +342,19 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 		goto exit;
 	}
 
-/*
-	if (gst_element_link(data->convert, data->sink)) {
-		GPlayerDEBUG("Elements could not be linked.\n");
-	}
-*/
 	/* Attempt the link */
 	ret = gst_pad_link(new_pad, sink_pad);
 	if (GST_PAD_LINK_FAILED(ret)) {
 		GPlayerDEBUG("  Type is '%s' but link failed.\n", new_pad_type);
 		gplayer_error(-1, data);
 		data->target_state = GST_STATE_NULL;
-		data->is_live = (gst_element_set_state(data->pipeline,
-				data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	} else {
 		GPlayerDEBUG("  Link succeeded (type '%s').\n", new_pad_type);
+		data->waitforpad = FALSE;
+		gst_element_sync_state_with_parent(data->source);
 	}
+	data->is_live = (gst_element_set_state(data->pipeline,
+			data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 
 	exit:
 	/* Unreference the new pad's caps, if we got them */
@@ -341,24 +376,30 @@ void build_pipeline(CustomData *data) {
 
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
+
+	data->waitforpad = FALSE;
+	data->usebuf2 = FALSE;
 	data->pipeline = gst_pipeline_new("test-pipeline");
 
 	/* Build pipeline */
 	data->source = gst_element_factory_make("uridecodebin", "source");
-	data->resample = gst_element_factory_make("audioresample", "resample");
+	data->prebuf = gst_element_factory_make("queue2", "prebuf");
+	data->prebuf2 = gst_element_factory_make("queue2", "prebuf2");
+	data->adder = gst_element_factory_make("adder", "mix");
 	data->buffer = gst_element_factory_make("queue2", "buffer");
+	data->resample = gst_element_factory_make("audioresample", "resample");
 	data->convert = gst_element_factory_make("audioconvert", "convert");
 	data->sink = gst_element_factory_make("autoaudiosink", "sink");
 
-	if (!data->pipeline || !data->resample || !data->source || !data->convert || !data->buffer
-			|| !data->sink) {
+	if (!data->pipeline || !data->resample || !data->source || !data->convert || !data->sink) {
 		gplayer_error(-1, data);
 		GPlayerDEBUG("Not all elements could be created.\n");
 		return;
 	}
 
-	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->buffer, data->convert, data->resample, data->sink, NULL);
-	if (!gst_element_link(data->buffer, data->convert)
+	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->prebuf, data->prebuf2, data->adder, data->buffer, data->convert, data->resample, data->sink, NULL);
+	if (!gst_element_link(data->adder, data->buffer)
+			|| !gst_element_link(data->buffer, data->convert)
 			|| !gst_element_link(data->convert, data->resample)
 			|| !gst_element_link(data->resample, data->sink)) {
 		GPlayerDEBUG("Elements could not be linked.\n");

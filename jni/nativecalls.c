@@ -147,6 +147,7 @@ static void gst_native_set_url(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	g_object_set(data->source, "uri", char_uri, NULL);
 	(*env)->ReleaseStringUTFChars(env, uri, char_uri);
 	data->duration = GST_CLOCK_TIME_NONE;
+	data->url = (*env)->GetStringUTFChars(env, uri, NULL);
 	data->allow_seek = seek;
 	data->is_live = (gst_element_set_state(data->pipeline, data->target_state)
 			== GST_STATE_CHANGE_NO_PREROLL);
@@ -220,7 +221,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	JNIEnv *env = NULL;
 
 	java_vm = vm;
-	setenv("GST_DEBUG", "*:1", 1);
+	setenv("GST_DEBUG", "*:4", 1);
 	setenv("GST_DEBUG_NO_COLOR", "0", 1);
 	if ((*vm)->GetEnv(vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK) {
 		GPlayerDEBUG("Could not retrieve JNIEnv");
