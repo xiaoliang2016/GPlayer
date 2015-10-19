@@ -88,10 +88,18 @@ static gboolean gst_worker_cb(CustomData *data) {
 			if (prebufbuffers == 0 && data->usebuf2 == TRUE) {
 				data->usebuf2 = FALSE;
 				gst_element_unlink(data->source, data->prebuf);
+				gst_element_unlink(data->prebuf, data->adder);
+				gst_bin_remove(GST_BIN(data->pipeline), data->prebuf);
+				data->prebuf = gst_element_factory_make("queue2", "prebuf");
+				gst_bin_add(GST_BIN(data->pipeline), data->prebuf);
 			}
 			if (prebufbuffers2 == 0 && data->usebuf2 == FALSE){
 				data->usebuf2 = TRUE;
 				gst_element_unlink(data->source, data->prebuf2);
+				gst_element_unlink(data->prebuf2, data->adder);
+				gst_bin_remove(GST_BIN(data->pipeline), data->prebuf2);
+				data->prebuf2 = gst_element_factory_make("queue2", "prebuf2");
+				gst_bin_add(GST_BIN(data->pipeline), data->prebuf2);
 			}
 
 			gst_bin_remove(GST_BIN(data->pipeline), data->source);
@@ -314,9 +322,11 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 	if (data->usebuf2 == TRUE) {
 		sink_pad = gst_element_get_static_pad(data->prebuf2, "sink");
 		gst_element_link(data->prebuf2, data->adder);
+		gst_element_sync_state_with_parent(data->prebuf2);
 	} else {
 		sink_pad = gst_element_get_static_pad(data->prebuf, "sink");
 		gst_element_link(data->prebuf, data->adder);
+		gst_element_sync_state_with_parent(data->prebuf);
 	}
 	GstPadLinkReturn ret;
 	GstCaps *new_pad_caps = NULL;
@@ -342,6 +352,8 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 		goto exit;
 	}
 
+	gst_element_sync_state_with_parent(data->source);
+
 	/* Attempt the link */
 	ret = gst_pad_link(new_pad, sink_pad);
 	if (GST_PAD_LINK_FAILED(ret)) {
@@ -351,7 +363,6 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad,
 	} else {
 		GPlayerDEBUG("  Link succeeded (type '%s').\n", new_pad_type);
 		data->waitforpad = FALSE;
-		gst_element_sync_state_with_parent(data->source);
 	}
 	data->is_live = (gst_element_set_state(data->pipeline,
 			data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
