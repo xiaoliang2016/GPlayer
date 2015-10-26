@@ -28,7 +28,7 @@ public class GPlayer {
 	public static final int ERROR_BUFFERING = 2;
 	private static final int SLOW_NETWORK = 370000;
 	private static final int FAST_NETWORK = 4194304;
-	private static final boolean LOG_FILE = true;
+	private static final boolean LOG_FILE = false;
 	protected static final int GPLAYER_NETWORK_CHANGE = 0;
 
 	public interface OnTimeListener {
