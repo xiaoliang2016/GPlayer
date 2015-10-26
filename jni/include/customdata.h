@@ -37,20 +37,25 @@ typedef struct _CustomData {
 	gboolean network_error;
 	GSource *timeout_source;
 	gint buffering_level;
-	GstElement *source;
-	GstElement *convert;
-	GstElement *buffer;
-	GstElement *prebuf;
+	GstElement *source1;
+	GstElement *source2;
+	GstElement *prebuf1;
 	GstElement *prebuf2;
-	GstElement *adder;
+	GstElement *ident1;
+	GstElement *ident2;
+	GstElement *inputselector;
+	GstElement *buffer;
+	GstElement *convert;
 	GstElement *sink;
-	GstElement *fakesink;
 	gboolean allow_seek;
 	int notify_time;
 	GSource *timeout_worker;
 	jbyte *url;
-	gboolean waitforpad;
-	gboolean usebuf2;
+	gboolean use_main_source;
+	gboolean wait_for_pad;
+	gboolean internal_error;
+	GstPad *input_pad;
+	gboolean source_change;
 } CustomData;
 
 

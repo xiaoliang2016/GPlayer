@@ -125,7 +125,8 @@ static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	GPlayerDEBUG("Setting URI to %s", url);
 	if (data->target_state >= GST_STATE_READY)
 		gst_element_set_state(data->pipeline, GST_STATE_READY);
-	g_object_set(data->source, "uri", url, NULL);
+	g_object_set(data->source1, "uri", url, NULL);
+	g_object_set(data->source2, "uri", url, NULL);
 	(*env)->ReleaseStringUTFChars(env, uri, char_uri);
 	data->duration = GST_CLOCK_TIME_NONE;
 	data->allow_seek = seek;
@@ -144,7 +145,8 @@ static void gst_native_set_url(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 	GPlayerDEBUG("Setting URL to %s", char_uri);
 	if (data->target_state >= GST_STATE_READY)
 		gst_element_set_state(data->pipeline, GST_STATE_READY);
-	g_object_set(data->source, "uri", char_uri, NULL);
+	g_object_set(data->source1, "uri", char_uri, NULL);
+	g_object_set(data->source2, "uri", char_uri, NULL);
 	(*env)->ReleaseStringUTFChars(env, uri, char_uri);
 	data->duration = GST_CLOCK_TIME_NONE;
 	data->url = (*env)->GetStringUTFChars(env, uri, NULL);
