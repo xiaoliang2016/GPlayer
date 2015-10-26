@@ -22,6 +22,7 @@ static gboolean gst_native_isplaying(JNIEnv* env, jobject thiz);
 static void gst_native_buffer_size(JNIEnv* env, jobject thiz, int size);
 static int gst_native_get_duration(JNIEnv* env, jobject thiz);
 static int gst_native_get_position(JNIEnv* env, jobject thiz);
+static void gst_native_enable_log(JNIEnv* env, jobject thiz, jboolean enable);
 
 void set_notifyfunction(CustomData *data);
 void buffer_size(CustomData *data, int size);

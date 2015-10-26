@@ -159,6 +159,8 @@ public class GPlayer {
 	private native boolean nativeIsPlaying();
 
 	private native void nativeSetVolume(float left, float right);
+	
+	private native void nativeEnableLogging(boolean enable);
 
 	private static native boolean nativeClassInit(); // Initialize native class:
 														// cache Method IDs for
@@ -388,6 +390,10 @@ public class GPlayer {
 	public void networkChanged() {
 		handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
 	}
+	
+	public void enableLogging(boolean enable) {
+		nativeEnableLogging(enable);
+	}
 
 	static {
 		System.loadLibrary("gstreamer_android");
@@ -397,5 +403,5 @@ public class GPlayer {
 
 	public static GPlayer getInstance() {
 		return instance;
-	}
+	}	
 }
