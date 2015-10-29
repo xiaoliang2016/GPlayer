@@ -8,15 +8,18 @@
 #include <string.h>
 #include <stdint.h>
 #include <gst/gst.h>
+#include <gst/audio/audio.h>
 
 #include "customdata.h"
 
 #include "java_callbacks.h"
 #include "gst_callbacks.h"
 
-#define SMALL_BUFFER 370000
-#define DEFAULT_BUFFER 4194304
 #define WORKER_TIMEOUT 250
+#define BUFFER_TIME 15
+#define ERROR_BUFFERING 2
+#define BUFFER_SLOW 3
+#define BUFFER_FAST 4
 
 static pthread_t gst_app_thread;
 
@@ -27,7 +30,6 @@ static pthread_t gst_app_thread;
 /* These global variables cache values which are not changing during execution */
 extern jfieldID custom_data_field_id;
 
-
 // internals
 void buffer_size(CustomData *data, int size);
 void build_pipeline(CustomData *data);
@@ -36,5 +38,7 @@ void execute_seek(gint64 desired_position, CustomData *data);
 void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data);
 
 gint no_buffer_fill;
+gint buffer_is_slow;
 gint count_buffer_fill;
 gint64 last_position;
+gint64 counter;
