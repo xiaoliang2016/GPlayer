@@ -78,6 +78,20 @@ static gboolean gst_worker_cb(CustomData *data)
 		data->duration = 0;
 	}
 
+	data->buffering_level = currentlevelbytes * 100 / maxsizebytes;
+
+	if (data->buffering_level > (data->fast_network ? 25 : 75) && data->target_state == GST_STATE_PLAYING && data->state == GST_STATE_PAUSED)
+	{
+		GstState state;
+		state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
+		if (state != GST_STATE_PLAYING)
+		{
+			GPlayerDEBUG("request GST_STATE_PLAYING");
+			data->target_state = GST_STATE_PLAYING;
+			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+		}
+	}
+
 	count_buffer_fill++;
 
 	if ((count_buffer_fill == 8) && (data->position > last_position + 1999))
@@ -104,12 +118,12 @@ static gboolean gst_worker_cb(CustomData *data)
 		no_buffer_fill = 0;
 	}
 
-	if (data->network_error == TRUE)
+/*	if (data->network_error == TRUE)
 	{
 		GPlayerDEBUG("Retrying setting state to PLAYING");
 		data->target_state = GST_STATE_PLAYING;
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-	}
+	}*/
 
 	counter++;
 	if (counter == 4)
@@ -131,8 +145,6 @@ static gboolean gst_worker_cb(CustomData *data)
 				acc += data->deltas[i];
 			}
 			mean = (acc - min - max) / 3;
-			GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes,
-					maxsizebytes, currentlevelbuffers);
 
 			gint stream_speed = data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width;
 			guint buffer_size = currentlevelbytes * 8;
@@ -164,6 +176,8 @@ static gboolean gst_worker_cb(CustomData *data)
 		}
 		data->last_buffer_load = currentlevelbytes;
 	}
+	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes,
+			maxsizebytes, currentlevelbuffers);
 
 	return TRUE;
 }
@@ -210,10 +224,12 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	}
 	g_error_free(err);
 	g_free(debug_info);
+/*
 	if (data->target_state > GST_STATE_PAUSED)
 	{
 		data->network_error = TRUE;
 	}
+*/
 }
 
 void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
@@ -283,7 +299,7 @@ static void tag_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 /* Called when the End Of the Stream is reached. Just move to the beginning of the media and pause. */
 static void eos_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 {
-	if (!data->network_error && data->target_state >= GST_STATE_PLAYING)
+	if (data->target_state >= GST_STATE_PLAYING)
 	{
 		data->target_state = GST_STATE_PAUSED;
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_NO_PREROLL);
@@ -299,29 +315,6 @@ static void eos_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 static void duration_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 {
 	data->duration = GST_CLOCK_TIME_NONE;
-}
-
-static void buffering_cb(GstBus *bus, GstMessage *msg, CustomData *data)
-{
-	if (data->is_live)
-		return;
-
-	if (strstr(GST_ELEMENT_NAME(msg->src), "queue2") != NULL && data->uri_queue == NULL)
-	{
-		data->uri_queue = (GstElement *) msg->src;
-	}
-
-	gst_message_parse_buffering(msg, &data->buffering_level);
-
-	if (data->buffering_level > (data->fast_network ? 25 : 75) && data->target_state == GST_STATE_PLAYING)
-	{
-		GstState state;
-		state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
-		if (state != GST_STATE_PLAYING)
-		{
-			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-		}
-	}
 }
 
 static void clock_lost_cb(GstBus *bus, GstMessage *msg, CustomData *data)
@@ -351,7 +344,7 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 		}
 		if (new_state == GST_STATE_PLAYING)
 		{
-			data->network_error = FALSE;
+//			data->network_error = FALSE;
 			gplayer_playback_running(data);
 		}
 	}
@@ -452,7 +445,6 @@ void build_pipeline(CustomData *data)
 	buffer_is_slow = 0;
 	counter = 0;
 
-	gplayer_error(BUFFER_FAST, data);
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
 
@@ -512,7 +504,6 @@ void build_pipeline(CustomData *data)
 	g_signal_connect(G_OBJECT(bus), "message::tag", (GCallback ) tag_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::state-changed", (GCallback ) state_changed_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::duration", (GCallback ) duration_cb, data);
-	g_signal_connect(G_OBJECT(bus), "message::buffering", (GCallback ) buffering_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::clock-lost", (GCallback ) clock_lost_cb, data);
 	gst_object_unref(bus);
 

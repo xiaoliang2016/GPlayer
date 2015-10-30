@@ -184,7 +184,7 @@ static void gst_native_play(JNIEnv* env, jobject thiz)
 		return;
 	GPlayerDEBUG("Setting state to PLAYING");
 	data->target_state = GST_STATE_PLAYING;
-	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_NO_PREROLL);
 }
 
 /* Set pipeline to PAUSED state */
