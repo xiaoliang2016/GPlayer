@@ -6,21 +6,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
 import org.freedesktop.gstreamer.GStreamer;
 
 import android.content.Context;
-import android.content.IntentFilter;
-import android.net.NetworkInfo;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
-import android.telephony.PhoneStateListener;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class GPlayer {

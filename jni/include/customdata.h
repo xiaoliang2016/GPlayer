@@ -25,7 +25,6 @@ typedef struct _CustomData
 	GstElement *pipeline;
 	GstElement *resample;
 	GstPad *pad;
-	GstPad *ghost_pad;
 	GMainContext *context;
 	GMainLoop *main_loop;
 	gboolean initialized;
@@ -36,7 +35,6 @@ typedef struct _CustomData
 	GstClockTime last_seek_time;
 	gboolean is_live;
 	GstState target_state;
-	gboolean network_error;
 	GSource *timeout_source;
 	gint buffering_level;
 	GstElement *source;
@@ -50,7 +48,6 @@ typedef struct _CustomData
 	gint deltas[5];
 	guint delta_index;
 	gint last_buffer_load;
-	GstElement *uri_queue;
 	guint bitrate;
 	jboolean fast_network;
 	GstAudioInfo audio_info;

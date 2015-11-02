@@ -7,6 +7,7 @@
 
 #include <jni.h>
 #include <time.h>
+#include <math.h>
 #include "include/gplayer.h"
 
 void buffer_size(CustomData *data, int size)
@@ -35,15 +36,6 @@ static gboolean gst_notify_time_cb(CustomData *data)
 	if (!data || !data->pipeline)
 		return TRUE;
 
-	/* If we didn't know it yet, query the stream duration */
-	if (!GST_CLOCK_TIME_IS_VALID(data->duration))
-	{
-		if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration))
-		{
-			data->duration = 0;
-		}
-	}
-
 	if (!gst_element_query_position(data->pipeline, GST_FORMAT_TIME, &data->position))
 	{
 		data->position = 0;
@@ -66,6 +58,23 @@ static gboolean gst_worker_cb(CustomData *data)
 	if (!data || !data->pipeline)
 		return TRUE;
 
+	data->duration = -1;
+	if (data->state == GST_STATE_PLAYING)
+	{
+		if (gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration))
+		{
+			if (data->duration > 0)
+			{
+				GPlayerDEBUG("detected duration: %0.3f", ((gfloat) data->duration / 1000000000));
+			}
+		}
+
+		if (data->duration == -1)
+		{
+			GPlayerDEBUG("NO duration, assuming stream!");
+		}
+	}
+
 	guint maxsizebytes;
 	guint currentlevelbuffers;
 	guint currentlevelbytes;
@@ -73,17 +82,11 @@ static gboolean gst_worker_cb(CustomData *data)
 	g_object_get(data->buffer, "current-level-buffers", &currentlevelbuffers, NULL);
 	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes, NULL);
 
-	if (!gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration))
-	{
-		data->duration = 0;
-	}
-
 	data->buffering_level = currentlevelbytes * 100 / maxsizebytes;
 
 	if (data->buffering_level > (data->fast_network ? 25 : 75) && data->target_state == GST_STATE_PLAYING && data->state == GST_STATE_PAUSED)
 	{
-		GstState state;
-		state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
+		GstState state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
 		if (state != GST_STATE_PLAYING)
 		{
 			GPlayerDEBUG("request GST_STATE_PLAYING");
@@ -118,48 +121,54 @@ static gboolean gst_worker_cb(CustomData *data)
 		no_buffer_fill = 0;
 	}
 
-/*	if (data->network_error == TRUE)
-	{
-		GPlayerDEBUG("Retrying setting state to PLAYING");
-		data->target_state = GST_STATE_PLAYING;
-		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
-	}*/
-
 	counter++;
-	if (counter == 4)
+	if (data->last_buffer_load)
 	{
-		counter = 0;
-		if (data->last_buffer_load)
+		data->deltas[data->delta_index] = currentlevelbytes - data->last_buffer_load;
+		data->delta_index++;
+		data->delta_index %= 5;
+		gint max = 0;
+		gint min = 0;
+		int i;
+		gint acc = 0;
+		for (i = 0; i < 5; i++)
 		{
-			data->deltas[data->delta_index] = currentlevelbytes - data->last_buffer_load;
-			data->delta_index++;
-			data->delta_index %= 5;
-			gint max = 0;
-			gint min = 0;
-			int i;
-			gint acc = 0;
-			for (i = 0; i < 5; i++)
-			{
-				max = MAX(data->deltas[i], max);
-				min = MIN(data->deltas[i], min);
-				acc += data->deltas[i];
-			}
-			mean = (acc - min - max) / 3;
-
+			max = MAX(data->deltas[i], max);
+			min = MIN(data->deltas[i], min);
+			acc += data->deltas[i];
+		}
+		mean = (acc - min - max) / 3;
+		if (counter >= 4)
+		{
+			counter = 0;
 			gint stream_speed = data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width;
 			guint buffer_size = currentlevelbytes * 8;
 			gint buffer_delta = (currentlevelbytes - data->last_buffer_load) * 8;
-			gfloat time_left = -1;
-			if (buffer_delta < 0)
-				time_left = buffer_size * (gfloat)((gfloat)stream_speed / (gfloat)-buffer_delta) / stream_speed;
-			GPlayerDEBUG("stream_speed: %lu Mbit/s, buffer_size: %lu Mbit, buffer_delta: %ld Mbit/s, time left: %.3f s", stream_speed, buffer_size, buffer_delta, time_left);
-/*			guint time_left = currentlevelbytes * 8 / (data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width);
-			if (data->buffering_level < 100 && mean < 0)
-			{
-				if (time_left < 15)
-				{
+			gfloat time_left = buffer_size / (gfloat)(mean * 4 * 8);
+			if (time_left < 0)
+				time_left = -time_left;
+			GPlayerDEBUG("stream_speed: %lu Mbit/s, buffer_size: %lu Mbit, buffer_delta: %ld Mbit/s, time left: %.3f s", stream_speed, buffer_size,
+					buffer_delta, time_left);
+			if (data->duration > 0 && time_left != INFINITY) {
+				gint64 position;
+				gst_element_query_position(data->pipeline, GST_FORMAT_TIME, &position);
+				guint64 buffered_ahead = (guint64)((time_left + 3) * 1000000000) + position;
+				if (buffered_ahead < data->duration) {
 					buffer_is_slow++;
+					if (buffer_is_slow >= 5)
+					{
+						gplayer_error(BUFFER_SLOW, data);
+					}
+				} else {
+					if (buffer_is_slow > 0)
+					{
+						buffer_is_slow = 0;
+						gplayer_error(BUFFER_FAST, data);
+					}
 				}
+			} else if (data->buffering_level < 100 && time_left != INFINITY && time_left < 15 && data->duration == -1)
+			{
+				buffer_is_slow++;
 				if (buffer_is_slow >= 5)
 				{
 					gplayer_error(BUFFER_SLOW, data);
@@ -172,12 +181,11 @@ static gboolean gst_worker_cb(CustomData *data)
 					buffer_is_slow = 0;
 					gplayer_error(BUFFER_FAST, data);
 				}
-			}*/
+			}
 		}
-		data->last_buffer_load = currentlevelbytes;
 	}
-	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes,
-			maxsizebytes, currentlevelbuffers);
+	data->last_buffer_load = currentlevelbytes;
+	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes, maxsizebytes, currentlevelbuffers);
 
 	return TRUE;
 }
@@ -193,7 +201,7 @@ void execute_seek(gint64 desired_position, CustomData *data)
 
 	diff = gst_util_get_timestamp() - data->last_seek_time;
 
-	if (!data->is_live)
+	if (!data->is_live && data->duration > 0)
 	{
 		/* Perform the seek now */
 		GPlayerDEBUG("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS(desired_position));
@@ -217,19 +225,13 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	{
 		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source)))
 		{
-			gplayer_error(err->code, data);
+//			gplayer_error(err->code, data);
 		}
-		data->target_state = GST_STATE_NULL;
-		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+//		data->target_state = GST_STATE_NULL;
+//		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 	g_error_free(err);
 	g_free(debug_info);
-/*
-	if (data->target_state > GST_STATE_PAUSED)
-	{
-		data->network_error = TRUE;
-	}
-*/
 }
 
 void print_one_tag(const GstTagList * list, const gchar * tag, CustomData *data)
@@ -311,12 +313,6 @@ static void eos_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	}
 }
 
-/* Called when the duration of the media changes. Just mark it as unknown, so we re-query it in the next UI refresh. */
-static void duration_cb(GstBus *bus, GstMessage *msg, CustomData *data)
-{
-	data->duration = GST_CLOCK_TIME_NONE;
-}
-
 static void clock_lost_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 {
 	if (data->target_state >= GST_STATE_PLAYING)
@@ -344,7 +340,6 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 		}
 		if (new_state == GST_STATE_PLAYING)
 		{
-//			data->network_error = FALSE;
 			gplayer_playback_running(data);
 		}
 	}
@@ -450,7 +445,6 @@ void build_pipeline(CustomData *data)
 
 	data->delta_index = 0;
 	data->last_buffer_load = 0;
-	data->uri_queue = NULL;
 	data->pipeline = gst_pipeline_new("test-pipeline");
 
 	/* Build pipeline */
@@ -503,7 +497,6 @@ void build_pipeline(CustomData *data)
 	g_signal_connect(G_OBJECT(bus), "message::eos", (GCallback ) eos_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::tag", (GCallback ) tag_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::state-changed", (GCallback ) state_changed_cb, data);
-	g_signal_connect(G_OBJECT(bus), "message::duration", (GCallback ) duration_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::clock-lost", (GCallback ) clock_lost_cb, data);
 	gst_object_unref(bus);
 
