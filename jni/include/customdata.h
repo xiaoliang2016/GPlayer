@@ -53,8 +53,12 @@ typedef struct _CustomData
 	GstAudioInfo audio_info;
 } CustomData;
 
+extern jboolean enable_logs;
+
 static inline void GPlayerDEBUG(const char *format, ...)
 {
+	if (!enable_logs)
+		return;
 	va_list varargs;
 
 	va_start(varargs, format);

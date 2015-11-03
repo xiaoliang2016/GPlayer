@@ -148,6 +148,8 @@ public class GPlayer {
 
 	private native void nativeSetVolume(float left, float right);
 
+	private native void nativeEnableLogging(boolean enable);
+
 	private native void nativeNetworkChange(boolean fast);
 
 	private static native boolean nativeClassInit(); // Initialize native class:
@@ -327,6 +329,10 @@ public class GPlayer {
 	public void networkChanged(boolean fast) {
 		Log.d("GPlayer", "networkChanged fast: " + fast);
 		nativeNetworkChange(fast);
+	}
+
+	public void enableLogging(boolean enable) {
+		nativeEnableLogging(enable);
 	}
 
 	static {

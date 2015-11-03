@@ -12,6 +12,7 @@
 #include "include/nativecalls.h"
 
 static pthread_key_t current_jni_env;
+jboolean enable_logs;
 static JavaVM *java_vm;
 
 jmethodID gplayer_error_id;
@@ -24,8 +25,7 @@ jmethodID gplayer_metadata_method_id;
 jfieldID custom_data_field_id;
 
 /* List of implemented native methods */
-JNINativeMethod native_methods[] =
-{
+JNINativeMethod native_methods[] = {
 { "nativeInit", "()V", (void *) gst_native_init },
 { "nativeFinalize", "()V", (void *) gst_native_finalize },
 { "nativeSetUri", "(Ljava/lang/String;Z)V", (void *) gst_native_set_uri },
@@ -42,11 +42,13 @@ JNINativeMethod native_methods[] =
 { "nativeIsPlaying", "()Z", (gboolean *) gst_native_isplaying },
 { "nativeSetVolume", "(FF)V", (gboolean *) gst_native_volume },
 { "nativeSetBufferSize", "(I)V", (void *) gst_native_buffer_size },
-{ "nativeNetworkChange", "(Z)V", (void *) gst_native_network_change } };
+{ "nativeNetworkChange", "(Z)V", (void *) gst_native_network_change },
+{ "nativeEnableLogging", "(Z)V", (void *) gst_native_enable_log }
+};
 
 /* Static class initializer: retrieve method and field IDs */
-void gst_native_class_init(JNIEnv* env, jclass klass)
-{
+void gst_native_class_init(JNIEnv* env, jclass klass) {
+	enable_logs = FALSE;
 	custom_data_field_id = (*env)->GetFieldID(env, klass, "native_custom_data", "J");
 	gplayer_error_id = (*env)->GetMethodID(env, klass, "onError", "(I)V");
 	gplayer_notify_time_id = (*env)->GetMethodID(env, klass, "onTime", "(I)V");
@@ -216,6 +218,10 @@ static void gst_native_set_position(JNIEnv* env, jobject thiz, int milliseconds)
 	}
 }
 
+static void gst_native_enable_log(JNIEnv* env, jobject thiz, jboolean enable) {
+	enable_logs = enable;
+}
+
 /* Register this thread with the VM */
 JNIEnv *attach_current_thread(void)
 {
@@ -249,7 +255,7 @@ jint JNI_OnLoad(JavaVM *vm, void *reserved)
 	JNIEnv *env = NULL;
 
 	java_vm = vm;
-	setenv("GST_DEBUG", "*:1", 1);
+	setenv("GST_DEBUG", "*:0", 1);
 	setenv("GST_DEBUG_NO_COLOR", "0", 1);
 	if ((*vm)->GetEnv(vm, (void**) &env, JNI_VERSION_1_4) != JNI_OK)
 	{

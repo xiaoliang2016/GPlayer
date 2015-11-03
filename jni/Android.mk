@@ -3,7 +3,9 @@ LOCAL_SHORT_COMMANDS := true
 
 # Edit this line
 GSTREAMER_ROOT_ANDROID := C:\repos\Aupeo-workspace\gstreamer-libs\$(TARGET_ARCH_ABI)\gstreamer-1.0-android-1.5.90
-
+GSTREAMER_INCLUDE_FONTS := no
+GSTREAMER_INCLUDE_CA_CERTIFICATES := no
+INCLUDE_COPY_FILE := no
 
 SHELL := PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin /bin/bash
 
