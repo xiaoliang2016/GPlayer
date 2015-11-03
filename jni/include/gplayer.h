@@ -20,6 +20,9 @@
 #define ERROR_BUFFERING 2
 #define BUFFER_SLOW 3
 #define BUFFER_FAST 4
+#define UNKNOWN_ERROR -1
+#define NOT_FOUND -2
+#define NOT_SUPPORTED -3
 
 static pthread_t gst_app_thread;
 

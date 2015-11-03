@@ -222,14 +222,27 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	gst_message_parse_error(msg, &err, &debug_info);
 	GPlayerDEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
 	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
-	if (strcmp(err->message, "Not Found") == 0 || (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL))
+	// || (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL))
+	if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source)))
 	{
-		if (strcmp(GST_OBJECT_NAME(msg->src), GST_OBJECT_NAME(data->source)))
+		if (strcmp(err->message, "Not Found") == 0)
 		{
-//			gplayer_error(err->code, data);
+			gplayer_error(NOT_FOUND, data);
+			data->target_state = GST_STATE_NULL;
+			data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 		}
-//		data->target_state = GST_STATE_NULL;
-//		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+		else if (strstr(err->message, "missing") != NULL && strstr(err->message, "plug-in") != NULL)
+		{
+			gplayer_error(NOT_SUPPORTED, data);
+			data->target_state = GST_STATE_NULL;
+			data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+		}
+		else if (strstr(err->message, "type") != NULL && strstr(err->message, "stream") != NULL)
+		{
+			gplayer_error(UNKNOWN_ERROR, data);
+			data->target_state = GST_STATE_NULL;
+			data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+		}
 	}
 	g_error_free(err);
 	g_free(debug_info);

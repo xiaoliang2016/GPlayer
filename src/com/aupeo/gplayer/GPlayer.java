@@ -18,7 +18,10 @@ public class GPlayer {
 	public static final int ERROR_BUFFERING = 2;
 	public static final int BUFFER_SLOW = 3;
 	public static final int BUFFER_FAST = 4;
-
+	public static final int UNKNOWN_ERROR = -1;
+	public static final int NOT_FOUND = -2;
+	public static final int NOT_SUPPORTED = -3;
+	
 	public interface OnTimeListener {
 		void onTime(int time);
 	}
