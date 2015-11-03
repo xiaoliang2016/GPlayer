@@ -115,7 +115,7 @@ static gboolean gst_worker_cb(CustomData *data)
 	if (count_buffer_fill == 20)
 	{
 		count_buffer_fill = 0;
-		if (no_buffer_fill >= 16)
+		if (no_buffer_fill >= 16 && data->target_state == GST_STATE_PLAYING)
 		{
 			gplayer_error(2, data);
 		}
