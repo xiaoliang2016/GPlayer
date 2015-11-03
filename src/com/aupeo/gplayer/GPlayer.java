@@ -6,30 +6,18 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
 import org.freedesktop.gstreamer.GStreamer;
 
 import android.content.Context;
-import android.content.IntentFilter;
-import android.net.NetworkInfo;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
-import android.telephony.PhoneStateListener;
-import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class GPlayer {
 
+	private static final boolean LOG_FILE = false;
 	public static final int ERROR_BUFFERING = 2;
-	private static final int SLOW_NETWORK = 370000;
-	private static final int FAST_NETWORK = 4194304;
-	private static final boolean LOG_FILE = true;
-	protected static final int GPLAYER_NETWORK_CHANGE = 0;
+	public static final int BUFFER_SLOW = 3;
+	public static final int BUFFER_FAST = 4;
 
 	public interface OnTimeListener {
 		void onTime(int time);
@@ -160,6 +148,8 @@ public class GPlayer {
 
 	private native void nativeSetVolume(float left, float right);
 
+	private native void nativeNetworkChange(boolean fast);
+
 	private static native boolean nativeClassInit(); // Initialize native class:
 														// cache Method IDs for
 														// callbacks
@@ -169,53 +159,7 @@ public class GPlayer {
 
 	private final Context context;
 
-	public Handler handler = new Handler() {
-
-		@Override
-		public void handleMessage(Message msg) {
-			if (msg.what == GPLAYER_NETWORK_CHANGE) {
-				NetworkInfo ni = GPlayerConnectivity.getNetworkInfo(context);
-				if (ni != null
-						&& GPlayerConnectivity.isConnectionFast(ni.getType(),
-								ni.getSubtype())) {
-					nativeSetBufferSize(FAST_NETWORK);
-				} else {
-					nativeSetBufferSize(SLOW_NETWORK);
-				}
-				new Thread(new Runnable() {
-
-					@Override
-					public void run() {
-						Log.d("GPlayer", "poke google to force network init!");
-						HttpGet httpGet = new HttpGet("http://www.google.com");
-						HttpParams httpParameters = new BasicHttpParams();
-						HttpConnectionParams.setConnectionTimeout(
-								httpParameters, 500);
-						HttpConnectionParams.setSoTimeout(httpParameters, 500);
-
-						DefaultHttpClient httpClient = new DefaultHttpClient(
-								httpParameters);
-						try {
-							httpClient.execute(httpGet);
-						} catch (IOException e) {
-							try {
-								Thread.sleep(1000);
-							} catch (InterruptedException e1) {
-								// TODO Auto-generated catch block
-								e1.printStackTrace();
-							}
-							handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
-						}
-					}
-				}).start();
-			}
-		}
-
-	};
-
 	private static GPlayer instance;
-
-	private ConnectionChangeReceiver ccr = new ConnectionChangeReceiver();
 
 	private Process logcat_process;
 
@@ -258,9 +202,6 @@ public class GPlayer {
 			}
 		}
 
-		context.registerReceiver(ccr, new IntentFilter(
-				"android.net.conn.CONNECTIVITY_CHANGE"));
-		
 		try {
 			GStreamer.init(context);
 		} catch (Exception e) {
@@ -317,7 +258,6 @@ public class GPlayer {
 	@Override
 	protected void finalize() throws Throwable {
 		super.finalize();
-		context.unregisterReceiver(ccr);
 		nativeFinalize();
 		logcat_process.destroy();
 	}
@@ -330,7 +270,6 @@ public class GPlayer {
 	public void onTime(int time) {
 		Log.d("GPlayer", "onTime: [" + time + "]");
 		mOnTimeListener.onTime(time);
-		GPlayerConnectivity.getNetworkInfo(context);
 	}
 
 	public void onPlayComplete() {
@@ -385,8 +324,9 @@ public class GPlayer {
 		nativeSetVolume(left, right);
 	}
 
-	public void networkChanged() {
-		handler.sendEmptyMessage(GPLAYER_NETWORK_CHANGE);
+	public void networkChanged(boolean fast) {
+		Log.d("GPlayer", "networkChanged fast: " + fast);
+		nativeNetworkChange(fast);
 	}
 
 	static {
