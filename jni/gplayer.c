@@ -92,6 +92,7 @@ static gboolean gst_worker_cb(CustomData *data)
 			GPlayerDEBUG("request GST_STATE_PLAYING");
 			data->target_state = GST_STATE_PLAYING;
 			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
+			gplayer_error(BUFFER_FAST, data);
 		}
 	}
 
@@ -443,6 +444,7 @@ void build_pipeline(CustomData *data)
 	gst_element_set_state(data->pipeline, GST_STATE_NULL);
 	gst_object_unref(data->pipeline);
 
+	gplayer_error(BUFFER_SLOW, data);
 	data->delta_index = 0;
 	data->last_buffer_load = 0;
 	data->pipeline = gst_pipeline_new("test-pipeline");
