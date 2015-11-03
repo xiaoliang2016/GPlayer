@@ -231,7 +231,7 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 			data->target_state = GST_STATE_NULL;
 			data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 		}
-		else if (strstr(err->message, "missing") != NULL && strstr(err->message, "plug-in") != NULL)
+		else if ((strstr(err->message, "missing") != NULL && strstr(err->message, "plug-in") != NULL) || (strstr(err->message, "No URI handler implemented for") != NULL))
 		{
 			gplayer_error(NOT_SUPPORTED, data);
 			data->target_state = GST_STATE_NULL;
