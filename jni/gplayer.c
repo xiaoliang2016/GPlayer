@@ -149,29 +149,34 @@ static gboolean gst_worker_cb(CustomData *data)
 			gint stream_speed = data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width;
 			guint buffer_size = currentlevelbytes * 8;
 			gint buffer_delta = (currentlevelbytes - data->last_buffer_load) * 8;
-			gfloat time_left = buffer_size / (gfloat)(mean * 4 * 8);
+			gfloat time_left = buffer_size / (gfloat) (mean * 4 * 8);
 			if (time_left < 0)
 				time_left = -time_left;
 			GPlayerDEBUG("stream_speed: %lu Mbit/s, buffer_size: %lu Mbit, buffer_delta: %ld Mbit/s, time left: %.3f s", stream_speed, buffer_size,
 					buffer_delta, time_left);
-			if (data->duration > 0 && time_left != INFINITY) {
+			if (data->duration > 0 && time_left != INFINITY)
+			{
 				gint64 position;
 				gst_element_query_position(data->pipeline, GST_FORMAT_TIME, &position);
-				guint64 buffered_ahead = (guint64)((time_left + 3) * 1000000000) + position;
-				if (buffered_ahead < data->duration) {
+				guint64 buffered_ahead = (guint64) ((time_left + 3) * 1000000000) + position;
+				if (buffered_ahead < data->duration)
+				{
 					buffer_is_slow++;
 					if (buffer_is_slow >= 5)
 					{
 						gplayer_error(BUFFER_SLOW, data);
 					}
-				} else {
+				}
+				else
+				{
 					if (buffer_is_slow > 0)
 					{
 						buffer_is_slow = 0;
 						gplayer_error(BUFFER_FAST, data);
 					}
 				}
-			} else if (data->buffering_level < 100 && time_left != INFINITY && time_left < 15 && data->duration == -1)
+			}
+			else if (data->buffering_level < 100 && time_left != INFINITY && time_left < 15 && data->duration == -1)
 			{
 				buffer_is_slow++;
 				if (buffer_is_slow >= 5)
@@ -190,7 +195,8 @@ static gboolean gst_worker_cb(CustomData *data)
 		}
 	}
 	data->last_buffer_load = currentlevelbytes;
-	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes, maxsizebytes, currentlevelbuffers);
+	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes, maxsizebytes,
+			currentlevelbuffers);
 
 	return TRUE;
 }
