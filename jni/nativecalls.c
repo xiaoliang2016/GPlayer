@@ -184,7 +184,7 @@ static void gst_native_play(JNIEnv* env, jobject thiz)
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
 	if (!data)
 		return;
-	GPlayerDEBUG("Setting state to PLAYING");
+	GPlayerDEBUG("Requesting state to PLAYING");
 	data->target_state = GST_STATE_PLAYING;
 	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_NO_PREROLL);
 }
