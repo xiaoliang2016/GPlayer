@@ -89,6 +89,10 @@ static gboolean gst_worker_cb(CustomData *data)
 		GstState state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
 		if (state != GST_STATE_PLAYING)
 		{
+			if (GST_CLOCK_TIME_IS_VALID(data->desired_position))
+			{
+				execute_seek(data->desired_position, data);
+			}
 			GPlayerDEBUG("request GST_STATE_PLAYING");
 			data->target_state = GST_STATE_PLAYING;
 			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
@@ -197,19 +201,18 @@ void execute_seek(gint64 desired_position, CustomData *data)
 {
 	gint64 diff;
 
-	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek || !(guint64)data->duration > 0)
+	if (desired_position == GST_CLOCK_TIME_NONE || !data->allow_seek)
 		return;
 
 	diff = gst_util_get_timestamp() - data->last_seek_time;
 
-	if (!data->is_live && data->duration > 0)
+	if (!data->is_live)
 	{
-		/* Perform the seek now */
 		GPlayerDEBUG("Seeking to %" GST_TIME_FORMAT, GST_TIME_ARGS(desired_position));
 		data->last_seek_time = gst_util_get_timestamp();
 		gst_element_seek_simple(data->pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, desired_position);
+		data->desired_position = GST_CLOCK_TIME_NONE;
 	}
-	data->desired_position = GST_CLOCK_TIME_NONE;
 }
 
 /* Retrieve errors from the bus and show them on the UI */
@@ -338,14 +341,6 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	if (GST_MESSAGE_SRC(msg) == GST_OBJECT(data->pipeline))
 	{
 		data->state = new_state;
-
-		/* The Ready to Paused state change is particularly interesting: */
-		if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED)
-		{
-			/* If there was a scheduled seek, perform it now that we have moved to the Paused state */
-			if (GST_CLOCK_TIME_IS_VALID(data->desired_position))
-				execute_seek(data->desired_position, data);
-		}
 		if (new_state == GST_STATE_PLAYING)
 		{
 			gplayer_playback_running(data);
