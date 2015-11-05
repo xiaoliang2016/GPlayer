@@ -84,7 +84,7 @@ static gboolean gst_worker_cb(CustomData *data)
 
 	data->buffering_level = currentlevelbytes * 100 / maxsizebytes;
 
-	if (data->buffering_level > (data->fast_network ? 25 : 75) && data->target_state == GST_STATE_PLAYING && data->state == GST_STATE_PAUSED)
+	if ((data->buffering_level > (data->fast_network ? 25 : 75) || data->allow_seek) && data->target_state == GST_STATE_PLAYING && (data->state == GST_STATE_PAUSED || (data->state == GST_STATE_READY && data->allow_seek)))
 	{
 		GstState state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
 		if (state != GST_STATE_PLAYING)
