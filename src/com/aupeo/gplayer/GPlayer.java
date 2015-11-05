@@ -226,9 +226,9 @@ public class GPlayer {
 
 	public void setDataSource(String uri, boolean seek) {
 		if (uri.contains("http://") || uri.contains("mms://")) {
-			nativeSetUrl(uri, true);
+			nativeSetUrl(uri, seek);
 		} else {
-			nativeSetUri(uri, false);
+			nativeSetUri(uri, seek);
 		}
 	}
 
