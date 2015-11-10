@@ -59,13 +59,17 @@ static gboolean gst_worker_cb(CustomData *data)
 		return TRUE;
 
 	data->duration = -1;
-	if (data->state == GST_STATE_PLAYING)
+	if (data->state >= GST_STATE_PAUSED)
 	{
 		if (gst_element_query_duration(data->pipeline, GST_FORMAT_TIME, &data->duration))
 		{
 			if (data->duration > 0)
 			{
 				GPlayerDEBUG("detected duration: %0.3f", ((gfloat) data->duration / 1000000000));
+				if ((gfloat) data->duration / 1000000000 < (gfloat) 15 * 50 / 100) {
+					gint req_buffer_size = data->audio_info.rate * data->audio_info.channels * data->audio_info.finfo->width / 8 * (data->duration / 1000000000);
+					buffer_size(data, req_buffer_size);
+				}
 			}
 		}
 
@@ -84,7 +88,7 @@ static gboolean gst_worker_cb(CustomData *data)
 
 	data->buffering_level = currentlevelbytes * 100 / maxsizebytes;
 
-	if ((data->buffering_level > (data->fast_network ? 25 : 75) || data->allow_seek) && data->target_state == GST_STATE_PLAYING && (data->state == GST_STATE_PAUSED || (data->state == GST_STATE_READY && data->allow_seek)))
+	if ((data->buffering_level > (data->fast_network ? 100 : 50) || data->allow_seek) && data->target_state == GST_STATE_PLAYING && (data->state == GST_STATE_PAUSED || (data->state == GST_STATE_READY && data->allow_seek)))
 	{
 		GstState state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
 		if (state != GST_STATE_PLAYING)
