@@ -7,3 +7,10 @@ GStreamer's Android precompiled binaries and headers, can be found here:
 http://gstreamer.freedesktop.org/data/pkg/android/1.6.1/
 
 There is no need to compile GStreamer from sources.
+
+GPlayer is licensed under LGPL 3.0
+
+LGPL 3.0
+https://www.gnu.org/licenses/lgpl-3.0.txt 
+or 
+COPYING file in this repo
