@@ -13,4 +13,4 @@ GPlayer is licensed under LGPL 3.0
 LGPL 3.0
 https://www.gnu.org/licenses/lgpl-3.0.txt 
 or 
-COPYING file in this repo
+https://github.com/profrook/GPlayer/blob/master/COPYING file in this repo
