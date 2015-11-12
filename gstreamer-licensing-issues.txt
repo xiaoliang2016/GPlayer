@@ -30,3 +30,23 @@ if there are doubts, lets make GStreamer based Android/iOS media player and then
 6.
 Aupeo requires only few audio decoders to work correctly, we do not need to use bad/ugly/proprietary plugins to get GStreamer in use.
 Note: https://aupeoberlin.atlassian.net/browse/AND-926
+
+7. GPlayer uses GStreamer's plugins:
+a) codecs
+ - mad faad
+ - ogg vorbis audioparsers flac icydemux id3demux isomp4 wavparse fragmented id3tag 
+b) networking protocols
+ - tcp soup
+c) core plugins
+ - playback coreelements audioconvert audioresample typefindfunctions volume autodetect
+d) system
+ - opensles
+
+8. Run-Time Licensing information:
+- plugins to use GPL:
+	mad faad opensles
+- plugins to use LGPL :
+	playback coreelements audioconvert audioresample typefindfunctions volume autodetect ogg vorbis audioparsers flac icydemux isomp4 wavparse id3tag fragmented tcp soup
+
+9. GPlayer itself is licensed under LGPL 3.0
+https://www.gnu.org/licenses/lgpl-3.0.txt
