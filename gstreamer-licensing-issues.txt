@@ -23,9 +23,9 @@ unlike GPL, LGPL allows to make your own licensing policy while using LGPL based
 if you want to modify LGPL licensed code to make it working, you need to publish that code after modifications.
 
 5.
-making GStreamer Android based media player does not require to modify any of LGPL licensed software that comes with GStreamer,
+use of GStreamer on Android as media player does not require to modify any of GPL/LGPL licensed software that comes with GStreamer,
 we can get GStreamer prebuild libraries/plugins/codecs and wrap them with our own media player's logic implementation,
-if there are doubts, lets make GStreamer based Android/iOS media player and then publish its whole code under LGPL.
+GStreamer's based Android media player sources (a.k.a. GPlayer) can be published under LGPL, to avoid GPL/LGPL licensing issues.
 
 6.
 Aupeo requires only few audio decoders to work correctly, we do not need to use bad/ugly/proprietary plugins to get GStreamer in use.
@@ -50,3 +50,7 @@ d) system
 
 9. GPlayer itself is licensed under LGPL 3.0
 https://www.gnu.org/licenses/lgpl-3.0.txt
+
+10. GPlayer currently uses GStreamer version 1.6.1,
+GStreamer's Android precompiled binaries and headers, can be found here:
+http://gstreamer.freedesktop.org/data/pkg/android/1.6.1/
