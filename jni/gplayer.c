@@ -115,7 +115,7 @@ static gboolean gst_worker_cb(CustomData *data)
 		last_position = data->position;
 	}
 
-	if (state == GST_STATE_PLAYING && data->buffering_level == 0)
+	if (state == GST_STATE_PLAYING && data->buffering_level == 0 && data->duration == -1)
 	{
 		GPlayerDEBUG("pausing, NO DATA");
 		gplayer_error(BUFFER_SLOW, data);
