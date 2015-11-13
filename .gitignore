@@ -4,8 +4,7 @@
 .gradle
 bin/
 tmp/
-*.[so]
-*.[o]
+*.o
 *.tmp
 *.bak
 *.swp
