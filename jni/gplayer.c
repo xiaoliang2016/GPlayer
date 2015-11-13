@@ -118,6 +118,7 @@ static gboolean gst_worker_cb(CustomData *data)
 	if (state == GST_STATE_PLAYING && data->buffering_level == 0)
 	{
 		GPlayerDEBUG("pausing, NO DATA");
+		gplayer_error(BUFFER_SLOW, data);
 		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 
