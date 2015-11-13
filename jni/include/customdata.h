@@ -49,6 +49,7 @@ typedef struct _CustomData
 	guint delta_index;
 	gint last_buffer_load;
 	guint bitrate;
+	guint64 buffering_time;
 	jboolean fast_network;
 	GstAudioInfo audio_info;
 } CustomData;

@@ -24,6 +24,10 @@
 #define NOT_FOUND -2
 #define NOT_SUPPORTED -3
 
+#define HUNDRED_PERCENT 100
+#define SECOND_IN_NANOS 1000000000
+#define BUFFERING_TIMEOUT WORKER_TIMEOUT * 10
+
 static pthread_t gst_app_thread;
 
 /* Do not allow seeks to be performed closer than this distance. It is visually useless, and will probably

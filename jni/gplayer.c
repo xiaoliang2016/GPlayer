@@ -25,7 +25,7 @@ void buffer_size(CustomData *data, int size)
 		g_object_set(data->buffer, "use-rate-estimate", (gboolean) FALSE, NULL);
 		g_object_set(data->buffer, "max-size-bytes", (guint) size, NULL);
 		g_object_set(data->buffer, "max-size-buffers", (guint) 1024, NULL);
-		g_object_set(data->buffer, "max-size-time", (guint64) BUFFER_TIME * 1000000000, NULL);
+		g_object_set(data->buffer, "max-size-time", (guint64) BUFFER_TIME * SECOND_IN_NANOS, NULL);
 	}
 }
 
@@ -65,9 +65,9 @@ static gboolean gst_worker_cb(CustomData *data)
 		{
 			if (data->duration > 0)
 			{
-				GPlayerDEBUG("detected duration: %0.3f", ((gfloat) data->duration / 1000000000));
-				if ((gfloat) data->duration / 1000000000 < (gfloat) 15 * 50 / 100) {
-					gint req_buffer_size = data->audio_info.rate * data->audio_info.channels * data->audio_info.finfo->width / 8 * (data->duration / 1000000000);
+				GPlayerDEBUG("detected duration: %0.3f", ((gfloat) data->duration / SECOND_IN_NANOS));
+				if ((gfloat) data->duration / SECOND_IN_NANOS < (gfloat) 15 * 50 / HUNDRED_PERCENT) {
+					gint req_buffer_size = data->audio_info.rate * data->audio_info.channels * data->audio_info.finfo->width / 8 * (data->duration / SECOND_IN_NANOS);
 					buffer_size(data, req_buffer_size);
 				}
 			}
@@ -86,11 +86,12 @@ static gboolean gst_worker_cb(CustomData *data)
 	g_object_get(data->buffer, "current-level-buffers", &currentlevelbuffers, NULL);
 	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes, NULL);
 
-	data->buffering_level = currentlevelbytes * 100 / maxsizebytes;
+	data->buffering_level = currentlevelbytes * HUNDRED_PERCENT / maxsizebytes;
 
-	if ((data->buffering_level >= (data->fast_network ? 100 : 50) || data->allow_seek) && data->target_state == GST_STATE_PLAYING && (data->state == GST_STATE_PAUSED || (data->state == GST_STATE_READY && data->allow_seek)))
+	GstState state;
+	gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
+	if ((data->buffering_level >= (data->fast_network ? HUNDRED_PERCENT : HUNDRED_PERCENT / 2) || data->allow_seek || (data->buffering_level > 0 && data->buffering_time >= (data->fast_network ? BUFFERING_TIMEOUT : BUFFERING_TIMEOUT * 2))) && data->target_state == GST_STATE_PLAYING && (data->state == GST_STATE_PAUSED || (data->state == GST_STATE_READY && data->allow_seek)))
 	{
-		GstState state = gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
 		if (state != GST_STATE_PLAYING)
 		{
 			if (GST_CLOCK_TIME_IS_VALID(data->desired_position))
@@ -99,6 +100,7 @@ static gboolean gst_worker_cb(CustomData *data)
 			}
 			GPlayerDEBUG("request GST_STATE_PLAYING");
 			data->target_state = GST_STATE_PLAYING;
+			data->buffering_time = 0;
 			data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_NO_PREROLL);
 			gplayer_error(BUFFER_FAST, data);
 		}
@@ -111,6 +113,12 @@ static gboolean gst_worker_cb(CustomData *data)
 		no_buffer_fill = 0;
 		count_buffer_fill = 0;
 		last_position = data->position;
+	}
+
+	if (state == GST_STATE_PLAYING && data->buffering_level == 0)
+	{
+		GPlayerDEBUG("pausing, NO DATA");
+		data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 
 	if (data->buffering_level < 5)
@@ -162,7 +170,7 @@ static gboolean gst_worker_cb(CustomData *data)
 			{
 				gint64 position;
 				gst_element_query_position(data->pipeline, GST_FORMAT_TIME, &position);
-				guint64 buffered_ahead = (guint64) ((time_left + 3) * 1000000000) + position;
+				guint64 buffered_ahead = (guint64) ((time_left + 3) * SECOND_IN_NANOS) + position;
 				if (buffered_ahead < data->duration)
 				{
 					buffer_is_slow++;
@@ -180,7 +188,7 @@ static gboolean gst_worker_cb(CustomData *data)
 					}
 				}
 			}
-			else if (data->buffering_level < 100 && time_left != INFINITY && time_left < 15 && data->duration == -1)
+			else if (data->buffering_level < HUNDRED_PERCENT && time_left != INFINITY && time_left < 15 && data->duration == -1)
 			{
 				buffer_is_slow++;
 				if (buffer_is_slow >= 5)
@@ -199,6 +207,8 @@ static gboolean gst_worker_cb(CustomData *data)
 		}
 	}
 	data->last_buffer_load = currentlevelbytes;
+	data->buffering_time += WORKER_TIMEOUT;
+
 	GPlayerDEBUG("mean: %8i, errors: %2i, ubuf: %3i, buf: %10i/%10i [%3i]", mean, no_buffer_fill, data->buffering_level, currentlevelbytes, maxsizebytes,
 			currentlevelbuffers);
 
@@ -225,7 +235,6 @@ void execute_seek(gint64 desired_position, CustomData *data)
 	}
 }
 
-/* Retrieve errors from the bus and show them on the UI */
 static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 {
 	GError *err;
@@ -235,7 +244,7 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	gst_message_parse_error(msg, &err, &debug_info);
 	GPlayerDEBUG("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);
 	GPlayerDEBUG("Debugging info: %s\n", (debug_info) ? debug_info : "none");
-	// || (strstr(err->message, "Internal") != NULL && strstr(err->message, "error") != NULL))
+
 	if (strcmp(err->message, "Not Found") == 0)
 	{
 		gplayer_error(NOT_FOUND, data);
@@ -353,6 +362,7 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 		data->state = new_state;
 		if (new_state == GST_STATE_PLAYING)
 		{
+			data->buffering_time = 0;
 			gplayer_playback_running(data);
 		}
 	}
@@ -399,11 +409,6 @@ static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data
 		goto exit;
 	}
 
-	/*
-	 if (gst_element_link(data->convert, data->sink)) {
-	 GPlayerDEBUG("Elements could not be linked.\n");
-	 }
-	 */
 	/* Attempt the link */
 	ret = gst_pad_link(new_pad, sink_pad);
 	if (GST_PAD_LINK_FAILED(ret))
@@ -459,6 +464,7 @@ void build_pipeline(CustomData *data)
 	gplayer_error(BUFFER_SLOW, data);
 	data->delta_index = 0;
 	data->last_buffer_load = 0;
+	data->buffering_time = 0;
 	data->pipeline = gst_pipeline_new("test-pipeline");
 	data->allow_seek = FALSE;
 
