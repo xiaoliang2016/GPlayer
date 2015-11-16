@@ -74,7 +74,7 @@ static void gst_native_volume(JNIEnv* env, jobject thiz, float left, float right
 	if (!data || !data->pipeline)
 		return;
 	GPlayerDEBUG("Set volume to %f", (float) ((left + right) / 2));
-	g_object_set(data->pipeline, "volume", (float) ((left + right) / 2), NULL);
+	g_object_set(data->volume, "volume", (float) ((left + right) / 2), NULL);
 }
 
 static void gst_native_buffer_size(JNIEnv* env, jobject thiz, int size)

@@ -41,6 +41,7 @@ typedef struct _CustomData
 	GstElement *convert;
 	GstElement *typefinder;
 	GstElement *buffer;
+	GstElement *volume;
 	GstElement *sink;
 	gboolean allow_seek;
 	int notify_time;

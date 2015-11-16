@@ -475,19 +475,20 @@ void build_pipeline(CustomData *data)
 	data->typefinder = gst_element_factory_make("typefind", "typefind");
 	data->buffer = gst_element_factory_make("queue2", "buffer");
 	data->convert = gst_element_factory_make("audioconvert", "convert");
+	data->volume = gst_element_factory_make("volume", "volume");
 	data->sink = gst_element_factory_make("autoaudiosink", "sink");
 
-	if (!data->pipeline || !data->resample || !data->source || !data->convert || !data->buffer || !data->typefinder || !data->sink)
+	if (!data->pipeline || !data->resample || !data->source || !data->convert || !data->buffer || !data->typefinder || !data->volume || !data->sink)
 	{
 		gplayer_error(-1, data);
 		GPlayerDEBUG("Not all elements could be created.\n");
 		return;
 	}
 
-	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->buffer, data->typefinder, data->convert, data->resample, data->sink,
+	gst_bin_add_many(GST_BIN(data->pipeline), data->source, data->buffer, data->typefinder, data->convert, data->resample, data->volume, data->sink,
 	NULL);
 	if (!gst_element_link(data->buffer, data->typefinder) || !gst_element_link(data->typefinder, data->convert)
-			|| !gst_element_link(data->convert, data->resample) || !gst_element_link(data->resample, data->sink))
+			|| !gst_element_link(data->convert, data->resample) || !gst_element_link(data->resample, data->volume) || !gst_element_link(data->volume, data->sink))
 	{
 		GPlayerDEBUG("Elements could not be linked.\n");
 		gst_object_unref(data->pipeline);
