@@ -86,7 +86,9 @@ static gboolean gst_worker_cb(CustomData *data)
 	g_object_get(data->buffer, "current-level-buffers", &currentlevelbuffers, NULL);
 	g_object_get(data->buffer, "current-level-bytes", &currentlevelbytes, NULL);
 
-	data->buffering_level = currentlevelbytes * HUNDRED_PERCENT / maxsizebytes;
+	if (maxsizebytes > 0) {
+		data->buffering_level = currentlevelbytes * HUNDRED_PERCENT / maxsizebytes;
+	}
 
 	GstState state;
 	gst_element_get_state(GST_ELEMENT(data->pipeline), &state, NULL, GST_CLOCK_TIME_NONE);
@@ -156,7 +158,7 @@ static gboolean gst_worker_cb(CustomData *data)
 			acc += data->deltas[i];
 		}
 		mean = (acc - min - max) / 3;
-		if (counter >= 4)
+		if (counter >= 4 && mean > 0)
 		{
 			counter = 0;
 			gint stream_speed = data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width;
