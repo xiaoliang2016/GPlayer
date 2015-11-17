@@ -235,7 +235,7 @@ JNIEnv *attach_current_thread(void)
 
 	if ((*java_vm)->AttachCurrentThread(java_vm, &env, &args) < 0)
 	{
-		GST_ERROR("Failed to attach current thread");
+		GPlayerDEBUG("Failed to attach current thread");
 		return NULL;
 	}
 
