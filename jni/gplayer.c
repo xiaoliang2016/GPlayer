@@ -158,13 +158,16 @@ static gboolean gst_worker_cb(CustomData *data)
 			acc += data->deltas[i];
 		}
 		mean = (acc - min - max) / 3;
-		if (counter >= 4 && mean > 0)
+		if (counter >= 4)
 		{
 			counter = 0;
 			gint stream_speed = data->audio_info.channels * data->audio_info.rate * data->audio_info.finfo->width;
 			guint buffer_size = currentlevelbytes * 8;
 			gint buffer_delta = (currentlevelbytes - data->last_buffer_load) * 8;
-			gfloat time_left = buffer_size / (gfloat) (mean * 4 * 8);
+			gfloat time_left = INFINITY;
+			if (mean != 0) {
+				time_left = buffer_size / (gfloat) (mean * 4 * 8);
+			}
 			if (time_left < 0)
 				time_left = -time_left;
 			GPlayerDEBUG("stream_speed: %lu Mbit/s, buffer_size: %lu Mbit, buffer_delta: %ld Mbit/s, time left: %.3f s", stream_speed, buffer_size,
