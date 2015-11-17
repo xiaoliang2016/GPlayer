@@ -66,7 +66,7 @@ static gboolean gst_worker_cb(CustomData *data)
 			if (data->duration > 0)
 			{
 				GPlayerDEBUG("detected duration: %0.3f", ((gfloat) data->duration / SECOND_IN_NANOS));
-				if ((gfloat) data->duration / SECOND_IN_NANOS < (gfloat) 15 * 50 / HUNDRED_PERCENT) {
+				if ((gfloat) data->duration / SECOND_IN_NANOS < (gfloat) 15) {
 					gint req_buffer_size = data->audio_info.rate * data->audio_info.channels * data->audio_info.finfo->width / 8 * (data->duration / SECOND_IN_NANOS);
 					buffer_size(data, req_buffer_size);
 				}
