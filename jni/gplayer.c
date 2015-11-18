@@ -17,6 +17,9 @@ void buffer_size(CustomData *data, int size)
 
 	if (size != maxsizebytes)
 	{
+		if (size > MAX_BUFFER_SIZE) {
+			size = MAX_BUFFER_SIZE;
+		}
 		GPlayerDEBUG("Set buffer size to %i", size);
 		g_object_set(data->source, "use-buffering", (gboolean) TRUE, NULL);
 		g_object_set(data->source, "download", (gboolean) TRUE, NULL);

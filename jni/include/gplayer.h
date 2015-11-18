@@ -15,6 +15,8 @@
 #include "java_callbacks.h"
 #include "gst_callbacks.h"
 
+#define MAX_BUFFER_SIZE 10000000
+
 #define WORKER_TIMEOUT 250
 #define BUFFER_TIME 15
 #define ERROR_BUFFERING 2
