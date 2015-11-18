@@ -270,6 +270,13 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 		data->target_state = GST_STATE_NULL;
 		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	}
+	else if (strstr(err->message, "Stream") != NULL && strstr(err->message, "enough") != NULL)
+	{
+		gplayer_error(ERROR_BUFFERING, data);
+		data->target_state = GST_STATE_NULL;
+		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
+	}
+
 	g_error_free(err);
 	g_free(debug_info);
 }
@@ -612,6 +619,7 @@ void gst_native_finalize(JNIEnv* env, jobject thiz)
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
 	if (!data)
 		return;
+	data->is_live = (gst_element_set_state(data->pipeline, GST_STATE_NULL) == GST_STATE_CHANGE_NO_PREROLL);
 	GPlayerDEBUG("Quitting main loop...");
 	g_main_loop_quit(data->main_loop);
 	GPlayerDEBUG("Waiting for thread to finish...");
