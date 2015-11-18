@@ -378,7 +378,6 @@ static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data)
  * These conditions will change depending on the application */
 void check_initialization_complete(CustomData *data)
 {
-	JNIEnv *env = get_jni_env();
 	if (!data->initialized && data->main_loop)
 	{
 		GPlayerDEBUG("Initialization complete, notifying application. main_loop:%p", data->main_loop);
