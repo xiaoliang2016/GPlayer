@@ -136,7 +136,7 @@ static gboolean gst_worker_cb(CustomData *data)
 		count_buffer_fill = 0;
 		if (no_buffer_fill >= 16 && data->target_state == GST_STATE_PLAYING)
 		{
-			gplayer_error(2, data);
+			gplayer_error(ERROR_BUFFERING, data);
 		}
 		no_buffer_fill = 0;
 	}
@@ -272,8 +272,8 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data)
 	}
 	else if (strstr(err->message, "Stream") != NULL && strstr(err->message, "enough") != NULL)
 	{
-		gplayer_error(ERROR_BUFFERING, data);
-		data->target_state = GST_STATE_NULL;
+		gplayer_error(UNKNOWN_ERROR, data);
+		data->target_state = GST_STATE_PAUSED;
 		data->is_live = (gst_element_set_state(data->pipeline, data->target_state) == GST_STATE_CHANGE_NO_PREROLL);
 	}
 
