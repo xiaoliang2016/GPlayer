@@ -15,3 +15,5 @@ static void error_cb(GstBus *bus, GstMessage *msg, CustomData *data);
 static void pad_added_handler(GstElement *src, GstPad *new_pad, CustomData *data);
 static void state_changed_cb(GstBus *bus, GstMessage *msg, CustomData *data);
 static void tag_cb(GstBus *bus, GstMessage *msg, CustomData *data);
+static void worker_notify(CustomData *data);
+static void create_worker(CustomData *data);

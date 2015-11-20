@@ -58,7 +58,7 @@ static gboolean gst_worker_cb(CustomData *data)
 	gint mean = 0;
 
 	/* We do not want to update anything unless we have a working pipeline in the PAUSED or PLAYING state */
-	if (!data || !data->pipeline)
+	if (!data)
 		return TRUE;
 
 	data->duration = -1;
@@ -461,10 +461,39 @@ static void cb_typefound(GstElement *typefind, guint probability, GstCaps *caps,
 	gst_object_unref(&info);
 }
 
+static void worker_notify(CustomData *data)
+{
+	GPlayerDEBUG("Worker destroyed... %p\n", data->timeout_worker);
+	if (data->main_loop != NULL && data->timeout_worker == NULL)
+	{
+		create_worker(data);
+	}
+}
+
+static void create_worker(CustomData *data)
+{
+	GSource *bus_source;
+	GstBus *bus;
+
+	bus = gst_element_get_bus(data->pipeline);
+	bus_source = gst_bus_create_watch(bus);
+	if (data->timeout_worker)
+	{
+		g_source_destroy(data->timeout_worker);
+		g_source_unref(data->timeout_worker);
+		data->timeout_worker = NULL;
+	}
+	data->timeout_worker = g_timeout_source_new(WORKER_TIMEOUT);
+	g_source_set_callback(data->timeout_worker, (GSourceFunc) gst_worker_cb, data, (GDestroyNotify) worker_notify);
+	g_source_attach(data->timeout_worker, data->context);
+	g_source_attach(bus_source, data->context);
+	g_source_unref(bus_source);
+	GPlayerDEBUG("New worker ready... %p\n", data->timeout_worker);
+}
+
 void build_pipeline(CustomData *data)
 {
 	GstBus *bus;
-	GSource *bus_source;
 	GError *error = NULL;
 	guint flags;
 
@@ -516,20 +545,9 @@ void build_pipeline(CustomData *data)
 	gst_element_set_state(data->pipeline, GST_STATE_READY);
 
 	bus = gst_element_get_bus(data->pipeline);
-	bus_source = gst_bus_create_watch(bus);
-	g_source_set_callback(bus_source, (GSourceFunc) gst_bus_async_signal_func,
-	NULL,
-	NULL);
-	if (data->timeout_worker)
-	{
-		g_source_destroy(data->timeout_worker);
-	}
-	data->timeout_worker = g_timeout_source_new(WORKER_TIMEOUT);
-	g_source_set_callback(data->timeout_worker, (GSourceFunc) gst_worker_cb, data, NULL);
-	g_source_attach(data->timeout_worker, data->context);
-	g_source_attach(bus_source, data->context);
-	g_source_unref(bus_source);
-	g_source_unref(data->timeout_worker);
+
+	worker_notify(data);
+
 	g_signal_connect(G_OBJECT(bus), "message::error", (GCallback ) error_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::eos", (GCallback ) eos_cb, data);
 	g_signal_connect(G_OBJECT(bus), "message::tag", (GCallback ) tag_cb, data);
