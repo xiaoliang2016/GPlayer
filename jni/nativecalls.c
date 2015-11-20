@@ -142,6 +142,7 @@ static int gst_native_get_duration(JNIEnv* env, jobject thiz)
 static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean seek)
 {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+	build_pipeline(data);
 	if (!data || !data->pipeline)
 		return;
 	const jbyte *char_uri = (*env)->GetStringUTFChars(env, uri, NULL);
@@ -161,6 +162,7 @@ static void gst_native_set_uri(JNIEnv* env, jobject thiz, jstring uri, jboolean 
 static void gst_native_set_url(JNIEnv* env, jobject thiz, jstring uri, jboolean seek)
 {
 	CustomData *data = GET_CUSTOM_DATA(env, thiz, custom_data_field_id);
+	build_pipeline(data);
 	if (!data || !data->pipeline)
 		return;
 	const jbyte *char_uri = (*env)->GetStringUTFChars(env, uri, NULL);
