@@ -168,7 +168,6 @@ public class GPlayer {
 
 	private Process logcat_process;
 	private boolean logging;
-	private int notifyTime;
 
 	public GPlayer(Context context) {
 		this.context = context;
@@ -238,7 +237,6 @@ public class GPlayer {
 	}
 
 	public void setNotifyTime(int time) {
-		notifyTime = time;
 		nativeSetNotifyTime(time);
 	}
 
@@ -329,7 +327,6 @@ public class GPlayer {
 		nativeFinalize();
 		nativeInit();
 		nativeEnableLogging(logging);
-		nativeSetNotifyTime(notifyTime);
 	}
 
 	public void setVolume(final float left, final float right) {
